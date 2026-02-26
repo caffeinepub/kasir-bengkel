@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Condensed:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* Light mode - clean workshop aesthetic */
+    --background: 0.97 0.005 240;
+    --foreground: 0.15 0.02 240;
+
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.02 240;
+
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.02 240;
+
+    --primary: 0.15 0.02 240;
+    --primary-foreground: 0.98 0 0;
+
+    --secondary: 0.93 0.01 240;
+    --secondary-foreground: 0.15 0.02 240;
+
+    --muted: 0.93 0.01 240;
+    --muted-foreground: 0.5 0.01 240;
+
+    --accent: 0.93 0.01 240;
+    --accent-foreground: 0.15 0.02 240;
+
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+
+    --border: 0.88 0.01 240;
+    --input: 0.88 0.01 240;
+    --ring: 0.65 0.18 50;
+
+    --chart-1: 0.65 0.18 50;
+    --chart-2: 0.55 0.15 200;
+    --chart-3: 0.45 0.12 150;
+    --chart-4: 0.7 0.2 80;
+    --chart-5: 0.6 0.22 30;
+
+    /* Sidebar - dark navy */
+    --sidebar: 0.18 0.04 240;
+    --sidebar-foreground: 0.92 0.01 240;
+    --sidebar-primary: 0.65 0.18 50;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.25 0.04 240;
+    --sidebar-accent-foreground: 0.92 0.01 240;
+    --sidebar-border: 0.28 0.04 240;
+    --sidebar-ring: 0.65 0.18 50;
+
+    /* Brand orange-amber */
+    --brand: 0.65 0.18 50;
+    --brand-dark: 0.55 0.18 50;
+  }
+
+  .dark {
+    --background: 0.13 0.025 240;
+    --foreground: 0.93 0.01 240;
+
+    --card: 0.18 0.03 240;
+    --card-foreground: 0.93 0.01 240;
+
+    --popover: 0.22 0.035 240;
+    --popover-foreground: 0.93 0.01 240;
+
+    --primary: 0.93 0.01 240;
+    --primary-foreground: 0.18 0.03 240;
+
+    --secondary: 0.25 0.04 240;
+    --secondary-foreground: 0.93 0.01 240;
+
+    --muted: 0.25 0.04 240;
+    --muted-foreground: 0.6 0.02 240;
+
+    --accent: 0.28 0.04 240;
+    --accent-foreground: 0.93 0.01 240;
+
+    --destructive: 0.65 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.28 0.04 240;
+    --input: 0.28 0.04 240;
+    --ring: 0.65 0.18 50;
+
+    --chart-1: 0.65 0.18 50;
+    --chart-2: 0.55 0.15 200;
+    --chart-3: 0.45 0.12 150;
+    --chart-4: 0.7 0.2 80;
+    --chart-5: 0.6 0.22 30;
+
+    /* Sidebar - deeper navy */
+    --sidebar: 0.12 0.03 240;
+    --sidebar-foreground: 0.92 0.01 240;
+    --sidebar-primary: 0.65 0.18 50;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.2 0.04 240;
+    --sidebar-accent-foreground: 0.92 0.01 240;
+    --sidebar-border: 0.22 0.04 240;
+    --sidebar-ring: 0.65 0.18 50;
+
+    --brand: 0.65 0.18 50;
+    --brand-dark: 0.55 0.18 50;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto Condensed', 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+  }
+}
+
+/* ─── Print Styles ─────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide everything by default */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only the print-only receipt */
+  .print-only {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 9999 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Receipt print styles */
+  .receipt-print {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    color: #000 !important;
+    background: #fff !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 8px !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+
+/* Hide print-only elements on screen */
+.print-only {
+  display: none;
+}

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 3,
+  "summary": "Aplikasi kasir bengkel berbasis web dengan penyimpanan internal. Fitur: pengaturan toko (logo, nama, alamat, telepon, ucapan terima kasih), kasir/transaksi, cetak struk menggunakan window.print() (kompatibel Nativefier/Node.js), riwayat transaksi, manajemen stok suku cadang, dan laporan harian/bulanan.",
+  "architectural_notes": [
+    "Gunakan window.print() untuk cetak struk, kompatibel dengan Nativefier (wrapper Node.js)",
+    "Penyimpanan data menggunakan localStorage atau IndexedDB (internal, tanpa database eksternal)"
+  ],
+  "known_issues": [],
+  "isFixRequest": false,
+  "imageRequirements": "## Required Images\n- Workshop/automotive themed app logo — dark navy background with an orange wrench and gear icon (bengkel-logo.dim_256x256.png)\n- Default shop logo placeholder — minimalist orange and dark navy shield badge with text 'BENGKEL' (default-shop-logo.dim_300x300.png)",
+  "existing_features": [
+    {
+      "id": "feature-build-a-shop-settings-page-where-the-owner-can-upload-change-the-shop-logo-edit-the-shop-name-address-phone-number-and-the-thank-you-message-that-appears-on-printed-receipts-changes-must-be-persisted-to-the-backend",
+      "title": "Build a Shop Settings page where the owner can upload/change the shop logo, edit the shop name, address, phone number, and the thank-you message that appears on printed receipts. Changes must be persisted to the backend.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-catalog-management-page-to-manage-services-and-spare-parts-products-each-item-has-a-name-category-service-vs-part-unit-price-and-stock-quantity-support-add-edit-and-delete-operations",
+      "title": "Build a Catalog Management page to manage services and spare parts (products). Each item has a name, category (service vs. part), unit price, and stock quantity. Support add, edit, and delete operations.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-cashier-new-transaction-page-where-the-cashier-can-search-and-add-services-or-products-to-a-cart-set-quantities-view-running-total-apply-an-optional-discount-record-customer-name-and-vehicle-info-and-finalize-the-transaction",
+      "title": "Build a Cashier / New Transaction page where the cashier can search and add services or products to a cart, set quantities, view running total, apply an optional discount, record customer name and vehicle info, and finalize the transaction.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-print-friendly-receipt-component-that-uses-window-print-so-it-works-with-nativefier-node-js-desktop-wrapping-the-receipt-must-display-the-shop-logo-shop-name-address-phone-number-transaction-date-time-transaction-id-itemized-list-with-quantities-and-prices-grand-total-and-the-configured-thank-you-message",
+      "title": "Implement a print-friendly receipt component that uses window.print() so it works with Nativefier/Node.js desktop wrapping. The receipt must display the shop logo, shop name, address, phone number, transaction date/time, transaction ID, itemized list with quantities and prices, grand total, and the configured thank-you message.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-transaction-history-page-that-lists-all-past-transactions-with-date-customer-name-vehicle-info-total-amount-and-a-reprint-button-support-filtering-by-date-range",
+      "title": "Build a Transaction History page that lists all past transactions with date, customer name, vehicle info, total amount, and a reprint button. Support filtering by date range.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-reports-page-showing-daily-and-monthly-sales-summaries-total-revenue-number-of-transactions-and-top-selling-items-include-a-date-month-picker-to-navigate-between-periods",
+      "title": "Build a Reports page showing daily and monthly sales summaries: total revenue, number of transactions, and top-selling items. Include a date/month picker to navigate between periods.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-design-and-apply-a-cohesive-visual-theme-for-the-entire-application-a-clean-professional-workshop-automotive-aesthetic-using-dark-navy-and-orange-amber-accent-colors-bold-industrial-typography-card-based-layouts-and-a-persistent-sidebar-navigation-with-icons-for-cashier-catalog-transactions-reports-and-settings",
+      "title": "Design and apply a cohesive visual theme for the entire application: a clean, professional workshop/automotive aesthetic using dark navy and orange-amber accent colors, bold industrial typography, card-based layouts, and a persistent sidebar navigation with icons for Cashier, Catalog, Transactions, Reports, and Settings.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Menu pengaturan toko (logo, nama, alamat, telepon, ucapan terima kasih di struk)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Kasir/transaksi - tambah item jasa/produk, hitung total",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Cetak struk menggunakan window.print() kompatibel Nativefier/Node.js",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Penyimpanan internal (localStorage/IndexedDB)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Riwayat transaksi",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Manajemen stok suku cadang",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Laporan harian/bulanan",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Create a backend Motoko actor to store and manage all application data: shop settings (logo URL, shop name, address, phone number, thank-you message), products/services catalog with stock, transactions with line items, and daily/monthly report aggregation.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Kasir Bengkel",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

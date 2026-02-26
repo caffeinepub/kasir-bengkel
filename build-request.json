@@ -1,0 +1,182 @@
+{
+  "kind": "build_request",
+  "title": "Workshop Cashier POS Application",
+  "projectName": "BengkelPOS",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Create a backend Motoko actor to store and manage all application data: shop settings (logo URL, shop name, address, phone number, thank-you message), products/services catalog with stock, transactions with line items, and daily/monthly report aggregation.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "kasir bengkel yang sempurna",
+          "penyimpanan internal"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Shop settings can be saved and retrieved persistently.",
+        "Products/services can be created, updated, and deleted with stock quantities tracked.",
+        "Transactions can be recorded with multiple line items (service or product), quantity, unit price, subtotal, and timestamp.",
+        "Backend exposes queries for daily and monthly sales totals and transaction counts."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Build a Shop Settings page where the owner can upload/change the shop logo, edit the shop name, address, phone number, and the thank-you message that appears on printed receipts. Changes must be persisted to the backend.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "menu seting untuk rubah logo toko, nama toko, alamat toko, nomer telepon, ucapan terimakasih pada struk"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Settings form contains fields for: logo image upload, shop name, address, phone number, and thank-you message.",
+        "Saving settings updates the backend and shows a success confirmation.",
+        "Uploaded logo is displayed in the settings page and on printed receipts."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Build a Catalog Management page to manage services and spare parts (products). Each item has a name, category (service vs. part), unit price, and stock quantity. Support add, edit, and delete operations.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Manajemen stok suku cadang"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Catalog list shows all items with name, category, price, and current stock.",
+        "Adding an item saves it to the backend and refreshes the list.",
+        "Editing an item updates name, price, and stock in the backend.",
+        "Deleting an item removes it from the catalog.",
+        "Stock is decremented automatically when an item is sold in a transaction."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Build a Cashier / New Transaction page where the cashier can search and add services or products to a cart, set quantities, view running total, apply an optional discount, record customer name and vehicle info, and finalize the transaction.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Kasir/transaksi - tambah item jasa/produk, hitung total"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Cashier can search catalog by name and add items to cart.",
+        "Cart shows item name, quantity, unit price, and line subtotal.",
+        "Grand total is computed in real-time including any discount.",
+        "Cashier can enter customer name and vehicle info (plate number, vehicle type).",
+        "Completing the transaction saves it to the backend and clears the cart.",
+        "After completion, the receipt print dialog is automatically triggered."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Implement a print-friendly receipt component that uses window.print() so it works with Nativefier/Node.js desktop wrapping. The receipt must display the shop logo, shop name, address, phone number, transaction date/time, transaction ID, itemized list with quantities and prices, grand total, and the configured thank-you message.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "print yang mendukung node Js. nativefier (perintah menggunakan window.print)",
+          "ucapan terimakasih pada struk"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A styled receipt component renders all required fields.",
+        "A CSS print stylesheet hides navigation and non-receipt UI, showing only the receipt.",
+        "Calling window.print() from the app produces a clean, well-formatted receipt.",
+        "Receipt can also be triggered from the transaction history view for reprinting."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Build a Transaction History page that lists all past transactions with date, customer name, vehicle info, total amount, and a reprint button. Support filtering by date range.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Riwayat transaksi"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Transaction list is paginated or scrollable and shows key transaction details.",
+        "Clicking a transaction opens its full detail/receipt view.",
+        "Reprint button on each transaction triggers window.print() for that receipt.",
+        "Date range filter narrows the list to the selected period."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Build a Reports page showing daily and monthly sales summaries: total revenue, number of transactions, and top-selling items. Include a date/month picker to navigate between periods.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Laporan harian/bulanan"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Daily report shows total revenue and transaction count for a selected date.",
+        "Monthly report shows total revenue and transaction count for a selected month.",
+        "Top-selling items (by quantity sold) are listed for the selected period.",
+        "Reports data is fetched from the backend actor."
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "Design and apply a cohesive visual theme for the entire application: a clean, professional workshop/automotive aesthetic using dark navy and orange-amber accent colors, bold industrial typography, card-based layouts, and a persistent sidebar navigation with icons for Cashier, Catalog, Transactions, Reports, and Settings.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-5"
+        ],
+        "quotes": [
+          "kasir bengkel yang sempurna"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All pages share the same color palette, typography, and component style.",
+        "Sidebar navigation is always visible on desktop with clear active-state highlighting.",
+        "App feels polished and purpose-built for a workshop environment."
+      ]
+    }
+  ],
+  "constraints": [
+    "Receipt printing must use window.print() only — no third-party print libraries.",
+    "All data must be stored in the Motoko backend actor — no external databases.",
+    "Do not modify any files under frontend/src/hooks/ or frontend/src/components/ui."
+  ],
+  "nonGoals": [
+    "Online payment gateway integration.",
+    "Multi-branch or multi-user role management.",
+    "Real-time WebSocket updates.",
+    "SMS or email receipt delivery.",
+    "External inventory supplier integrations."
+  ],
+  "imageRequirements": {
+    "required": [
+      "Workshop/automotive themed app logo — dark navy background with an orange wrench and gear icon (bengkel-logo.dim_256x256.png)",
+      "Default shop logo placeholder — minimalist orange and dark navy shield badge with text 'BENGKEL' (default-shop-logo.dim_300x300.png)"
+    ],
+    "edits": []
+  }
+}

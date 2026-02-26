@@ -1,0 +1,177 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Workshop Cashier POS Application - Frontend Implementation",
+  "requirements": [
+    {
+      "id": "REQ-2",
+      "summary": "Build a Shop Settings page where the owner can upload/change the shop logo, edit the shop name, address, phone number, and the thank-you message that appears on printed receipts",
+      "acceptanceCriteria": [
+        "Settings form contains fields for: logo image upload, shop name, address, phone number, and thank-you message",
+        "Saving settings updates the backend and shows a success confirmation",
+        "Uploaded logo is displayed in the settings page and on printed receipts"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/SettingsPage.tsx",
+          "operation": "create",
+          "description": "Create the Shop Settings page with a form containing fields for logo upload (using ExternalBlob from blob-storage component), shop name, address, phone number, and thank-you message. Wire the form to call backend methods updateShopSettings() and uploadLogo(). Display the generated default-shop-logo.dim_300x300.png from frontend/public/assets/generated/default-shop-logo.dim_300x300.png as placeholder. Show success confirmation after save. Verify the blob-storage component's usage instructions before implementing logo upload."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route for /settings pointing to SettingsPage component and include it in the sidebar navigation"
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Build a Catalog Management page to manage services and spare parts (products) with add, edit, and delete operations",
+      "acceptanceCriteria": [
+        "Catalog list shows all items with name, category, price, and current stock",
+        "Adding an item saves it to the backend and refreshes the list",
+        "Editing an item updates name, price, and stock in the backend",
+        "Deleting an item removes it from the catalog",
+        "Stock is decremented automatically when an item is sold in a transaction"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/CatalogPage.tsx",
+          "operation": "create",
+          "description": "Create the Catalog Management page that displays a list of all products and services fetched via getAllProducts() and getAllServices(). Include add/edit/delete functionality calling addProduct(), addService(), deleteProduct(), deleteService(), and updateProductStock(). Show category, name, price, and stock for each item. Provide modal or inline forms for adding and editing items."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route for /catalog pointing to CatalogPage component and include it in the sidebar navigation"
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Build a Cashier / New Transaction page where the cashier can search and add services or products to a cart, set quantities, apply discount, record customer and vehicle info, and finalize the transaction",
+      "acceptanceCriteria": [
+        "Cashier can search catalog by name and add items to cart",
+        "Cart shows item name, quantity, unit price, and line subtotal",
+        "Grand total is computed in real-time including any discount",
+        "Cashier can enter customer name and vehicle info (plate number, vehicle type)",
+        "Completing the transaction saves it to the backend and clears the cart",
+        "After completion, the receipt print dialog is automatically triggered"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/CashierPage.tsx",
+          "operation": "create",
+          "description": "Create the Cashier/New Transaction page with a search bar for catalog items (fetched via getAllProducts() and getAllServices()), a cart component showing selected items with quantities and line subtotals, a grand total display with optional discount input, and fields for customer name and vehicle info. On transaction completion, call createTransaction() with the cart items, then trigger the receipt print dialog automatically via window.print() and clear the cart. Fetch customer suggestions via getAllCustomers()."
+        },
+        {
+          "path": "frontend/src/components/Receipt.tsx",
+          "operation": "create",
+          "description": "Create a Receipt component that displays shop logo (from getShopSettings() or the generated default-shop-logo.dim_300x300.png from frontend/public/assets/generated/default-shop-logo.dim_300x300.png), shop name, address, phone number, transaction date/time, transaction ID, itemized list of products/services with quantities and prices, grand total, and the thank-you message. This component is used for printing via window.print()."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route for /cashier pointing to CashierPage component and include it in the sidebar navigation as the primary entry point"
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Implement a print-friendly receipt component that uses window.print() and works with Nativefier/Node.js desktop wrapping",
+      "acceptanceCriteria": [
+        "A styled receipt component renders all required fields",
+        "A CSS print stylesheet hides navigation and non-receipt UI, showing only the receipt",
+        "Calling window.print() from the app produces a clean, well-formatted receipt",
+        "Receipt can also be triggered from the transaction history view for reprinting"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/Receipt.tsx",
+          "operation": "modify",
+          "description": "Enhance the Receipt component to be print-friendly, displaying all required fields: shop logo from getShopSettings() (or the generated default-shop-logo.dim_300x300.png from frontend/public/assets/generated/default-shop-logo.dim_300x300.png as fallback), shop details, transaction data, itemized list, total, and thank-you message. Ensure it is styled for clarity when printed."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add a CSS @media print block that hides navigation, sidebar, and all non-receipt UI elements, ensuring only the Receipt component is visible during window.print(). Style the receipt for clean paper output."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Build a Transaction History page that lists all past transactions with reprint functionality and date range filtering",
+      "acceptanceCriteria": [
+        "Transaction list is paginated or scrollable and shows key transaction details",
+        "Clicking a transaction opens its full detail/receipt view",
+        "Reprint button on each transaction triggers window.print() for that receipt",
+        "Date range filter narrows the list to the selected period"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TransactionHistoryPage.tsx",
+          "operation": "create",
+          "description": "Create the Transaction History page that fetches and displays all transactions via getAllTransactions(). Show transaction date, customer name, vehicle info, and total amount. Include a date range filter to narrow results using getTransactionsByMonth() or client-side filtering. Each transaction row has a reprint button that loads the transaction detail via getTransaction() and triggers window.print() with the Receipt component."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route for /transactions pointing to TransactionHistoryPage component and include it in the sidebar navigation"
+        }
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "summary": "Build a Reports page showing daily and monthly sales summaries with date/month picker navigation",
+      "acceptanceCriteria": [
+        "Daily report shows total revenue and transaction count for a selected date",
+        "Monthly report shows total revenue and transaction count for a selected month",
+        "Top-selling items (by quantity sold) are listed for the selected period",
+        "Reports data is fetched from the backend actor"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/ReportsPage.tsx",
+          "operation": "create",
+          "description": "Create the Reports page with date and month pickers. Fetch daily reports via getDailyReport() and monthly reports via getMonthlyReport(). Display total revenue, transaction count, and top-selling items using getTopSellingItems(). Allow the user to switch between daily and monthly views."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route for /reports pointing to ReportsPage component and include it in the sidebar navigation"
+        }
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "summary": "Design and apply a cohesive visual theme: dark navy and orange-amber colors, bold industrial typography, card-based layouts, and a persistent sidebar navigation",
+      "acceptanceCriteria": [
+        "All pages share the same color palette, typography, and component style",
+        "Sidebar navigation is always visible on desktop with clear active-state highlighting",
+        "App feels polished and purpose-built for a workshop environment"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Update global styles to define the color palette (dark navy primary, orange-amber accent), bold industrial typography (e.g., 'Roboto Condensed', 'Inter', or similar sans-serif), and card-based layout styling. Ensure consistency across all pages."
+        },
+        {
+          "path": "frontend/tailwind.config.js",
+          "operation": "modify",
+          "description": "Extend the Tailwind theme to include custom colors (dark navy, orange-amber) and typography settings that align with the industrial workshop aesthetic. Configure card, button, and navigation component styles."
+        },
+        {
+          "path": "frontend/src/components/Sidebar.tsx",
+          "operation": "create",
+          "description": "Create a Sidebar component with navigation links (icons and labels) for Cashier, Catalog, Transactions, Reports, and Settings. Apply active-state highlighting using the industrial theme colors. Display the generated bengkel-logo.dim_256x256.png from frontend/public/assets/generated/bengkel-logo.dim_256x256.png at the top of the sidebar."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Integrate the Sidebar component into the main App layout so it is persistently visible on all pages. Ensure the layout accommodates the sidebar and main content area."
+        }
+      ]
+    }
+  ]
+}

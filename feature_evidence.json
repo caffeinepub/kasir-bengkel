@@ -1,0 +1,148 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-build-a-shop-settings-page-where-the-owner-can-upload-change-the-shop-logo-edit-the-shop-name-address-phone-number-and-the-thank-you-message-that-appears-on-printed-receipts-changes-must-be-persisted-to-the-backend",
+      "featureTitle": "Build a Shop Settings page where the owner can upload/change the shop logo, edit the shop name, address, phone number, and the thank-you message that appears on printed receipts. Changes must be persisted to the backend.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/pages/SettingsPage.tsx"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-a-catalog-management-page-to-manage-services-and-spare-parts-products-each-item-has-a-name-category-service-vs-part-unit-price-and-stock-quantity-support-add-edit-and-delete-operations",
+      "featureTitle": "Build a Catalog Management page to manage services and spare parts (products). Each item has a name, category (service vs. part), unit price, and stock quantity. Support add, edit, and delete operations.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/pages/CatalogPage.tsx"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-a-cashier-new-transaction-page-where-the-cashier-can-search-and-add-services-or-products-to-a-cart-set-quantities-view-running-total-apply-an-optional-discount-record-customer-name-and-vehicle-info-and-finalize-the-transaction",
+      "featureTitle": "Build a Cashier / New Transaction page where the cashier can search and add services or products to a cart, set quantities, view running total, apply an optional discount, record customer name and vehicle info, and finalize the transaction.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/components/Receipt.tsx",
+        "frontend/src/pages/CashierPage.tsx"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-a-print-friendly-receipt-component-that-uses-window-print-so-it-works-with-nativefier-node-js-desktop-wrapping-the-receipt-must-display-the-shop-logo-shop-name-address-phone-number-transaction-date-time-transaction-id-itemized-list-with-quantities-and-prices-grand-total-and-the-configured-thank-you-message",
+      "featureTitle": "Implement a print-friendly receipt component that uses window.print() so it works with Nativefier/Node.js desktop wrapping. The receipt must display the shop logo, shop name, address, phone number, transaction date/time, transaction ID, itemized list with quantities and prices, grand total, and the configured thank-you message.",
+      "files": [
+        "frontend/src/components/Receipt.tsx",
+        "frontend/src/index.css"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-a-transaction-history-page-that-lists-all-past-transactions-with-date-customer-name-vehicle-info-total-amount-and-a-reprint-button-support-filtering-by-date-range",
+      "featureTitle": "Build a Transaction History page that lists all past transactions with date, customer name, vehicle info, total amount, and a reprint button. Support filtering by date range.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/pages/TransactionHistoryPage.tsx"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-6"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-a-reports-page-showing-daily-and-monthly-sales-summaries-total-revenue-number-of-transactions-and-top-selling-items-include-a-date-month-picker-to-navigate-between-periods",
+      "featureTitle": "Build a Reports page showing daily and monthly sales summaries: total revenue, number of transactions, and top-selling items. Include a date/month picker to navigate between periods.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/pages/ReportsPage.tsx"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-7"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-design-and-apply-a-cohesive-visual-theme-for-the-entire-application-a-clean-professional-workshop-automotive-aesthetic-using-dark-navy-and-orange-amber-accent-colors-bold-industrial-typography-card-based-layouts-and-a-persistent-sidebar-navigation-with-icons-for-cashier-catalog-transactions-reports-and-settings",
+      "featureTitle": "Design and apply a cohesive visual theme for the entire application: a clean, professional workshop/automotive aesthetic using dark navy and orange-amber accent colors, bold industrial typography, card-based layouts, and a persistent sidebar navigation with icons for Cashier, Catalog, Transactions, Reports, and Settings.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/components/Sidebar.tsx",
+        "frontend/src/index.css",
+        "frontend/tailwind.config.js"
+      ],
+      "components": [
+        "blob-storage@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-8"
+      ],
+      "confidence": "high"
+    }
+  ]
+}
