@@ -1,66 +1,77 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Add Excel Import/Export to Inventory Page",
+  "title": "Fix Excel download bug and restore Indonesian UI language",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Add Excel export button to Inventory page that downloads all inventory items as a well-formatted .xlsx file with proper column headers and numeric formatting",
+      "summary": "Fix the custom XLSX writer in xlsx.ts to generate valid, non-corrupt .xlsx files that open successfully in Excel and LibreOffice Calc",
       "acceptanceCriteria": [
-        "A clearly labeled 'Download Excel' button is visible on the Inventory page toolbar.",
-        "Clicking the button triggers a download of a .xlsx file (not .csv).",
-        "The downloaded file contains all current inventory items with columns: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
-        "The file opens correctly in Excel 2007 and newer versions.",
-        "Column headers are bold and clearly formatted.",
-        "Numeric price and stock values are stored as numbers (not strings) in the spreadsheet."
+        "Clicking the export/download button on the Inventory page generates a .xlsx file that opens successfully in Microsoft Excel.",
+        "The downloaded file opens successfully in LibreOffice Calc without errors.",
+        "All inventory data rows and headers are present and correctly formatted in the opened file.",
+        "The ZIP/zlib structure, CRC32/Adler32 checksums, and Office Open XML parts in xlsx.ts are valid and well-formed."
       ],
       "file_operations": [
         {
-          "path": "frontend/package.json",
+          "path": "frontend/src/lib/xlsx.ts",
           "operation": "modify",
-          "description": "Add xlsx library (SheetJS) as a dependency to enable .xlsx file generation and parsing for Excel export and import functionality."
+          "description": "Fix the XLSX writer to produce valid Office Open XML files. Correct the ZIP structure, ensure proper CRC32 checksums for all entries, fix zlib DEFLATE compression with valid Adler32 checksums, ensure correct directory structure and file ordering, and validate all XML namespace declarations and relationships match Office Open XML specifications."
         },
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Add a 'Download Excel' button to the inventory page toolbar above the table. Implement an onClick handler that fetches all inventory items via the existing useInventoryItems hook, transforms the data into a structured format with columns (Name, Type, Purchase Price, Selling Price, Stock, Unit), generates a .xlsx file using the xlsx library with bold headers and proper numeric cell types, and triggers a browser download with filename 'inventory-export.xlsx'. Ensure Type field maps 'goods'/'service' to 'Goods'/'Service', stock shows the quantity for goods or 'N/A' for services, and prices are formatted as numbers without currency symbols in the spreadsheet."
+          "description": "Verify the Excel export flow correctly passes inventory data to the fixed xlsx.ts writer and triggers the download with proper MIME type and filename. Ensure column headers and data rows are properly formatted for the XLSX export."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Add Excel import button to Inventory page that parses uploaded .xlsx files with support for both semicolon and comma separators, validates rows, and bulk-imports items to the backend",
+      "summary": "Replace all English text throughout the application with Indonesian translations to restore the original language consistency",
       "acceptanceCriteria": [
-        "A clearly labeled 'Upload Excel' button is visible on the Inventory page toolbar.",
-        "Clicking the button opens a file picker that accepts .xlsx files.",
-        "The system correctly parses .xlsx files regardless of whether the regional Excel setting uses ; or , as separators.",
-        "Imported rows are validated: Name is required; Type must be 'goods' or 'service'; numeric fields (prices, stock) must be valid numbers.",
-        "Invalid rows are reported to the user with a clear error message indicating which rows failed and why.",
-        "Successfully imported items are added to the backend inventory and the inventory table refreshes automatically.",
-        "Duplicate items (by name) prompt the user to choose to skip or overwrite."
+        "All page titles, navigation labels, and sidebar links are displayed in Indonesian.",
+        "All button labels (e.g., add, save, delete, export, import, download template) are in Indonesian.",
+        "All table column headers on the Inventory, Transactions, and Reports pages are in Indonesian.",
+        "All form field labels and placeholder text are in Indonesian.",
+        "All toast/notification messages (success, error, warning) are in Indonesian.",
+        "All dialog and modal content (titles, descriptions, confirm/cancel buttons) are in Indonesian.",
+        "No English text is visible to the end user anywhere in the application."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/InventoryPage.tsx",
+          "path": "frontend/src/components/Sidebar.tsx",
           "operation": "modify",
-          "description": "Add an 'Upload Excel' button to the inventory page toolbar next to the Download Excel button. Implement an onClick handler that opens a file picker accepting .xlsx files. When a file is selected, read it using the xlsx library to parse the workbook. Extract the first sheet and convert rows to JSON, handling both semicolon and comma delimiters by detecting the cell content structure. Validate each row: ensure Name is non-empty, Type is 'Goods' or 'Service' (case-insensitive, map to 'goods'/'service'), Purchase Price and Selling Price are valid positive numbers, Stock is a valid non-negative number for goods (optional for services), and Unit is non-empty. Collect validation errors with row numbers. Check for duplicates by comparing lowercase names against existing inventory items fetched via useInventoryItems. If duplicates exist, show a confirmation dialog asking to skip or overwrite. Display validation errors in a dialog if any rows fail. For valid rows, call the addInventoryItem mutation from useQueries for each item with a generated ID (using Date.now() + index or similar), then invalidate and refetch the inventory query to refresh the table."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Provide a downloadable Excel template file with pre-filled headers and an example row to guide users in preparing import data",
-      "acceptanceCriteria": [
-        "A 'Download Template' link or button is available near the Upload Excel button.",
-        "The template .xlsx file contains bold headers: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
-        "One example row is included demonstrating the expected format (e.g., 'Brake Pad, goods, 50000, 75000, 10, pcs').",
-        "The template file opens correctly in all Excel versions."
-      ],
-      "file_operations": [
+          "description": "Replace all navigation link labels with Indonesian: 'Cashier' → 'Kasir', 'Inventory' → 'Inventori', 'Transactions' → 'Transaksi', 'Reports' → 'Laporan', 'Settings' → 'Pengaturan'. Ensure the branded header text remains 'Kasir Bengkel'."
+        },
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Add a 'Download Template' link or button to the inventory page toolbar near the Upload Excel button. Implement an onClick handler that programmatically creates a .xlsx file using the xlsx library containing bold column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) in the first row and one example data row (e.g., 'Brake Pad', 'Goods', 50000, 75000, 10, 'pcs') with proper cell types (text for Name/Type/Unit, number for prices and stock). Apply bold formatting to the header row using xlsx cell styling. Trigger a browser download with filename 'inventory-template.xlsx'."
+          "description": "Replace all English text with Indonesian equivalents: page title, search placeholder, button labels (add, edit, delete, export, import, download template), table headers (ID, Name, Type, Quantity, Purchase Price, Selling Price, Actions), dialog titles and content, form field labels and placeholders, validation messages, and toast notifications. Ensure 'goods' → 'Barang' and 'service' → 'Jasa' for product types."
+        },
+        {
+          "path": "frontend/src/pages/CashierPage.tsx",
+          "operation": "modify",
+          "description": "Replace all English text with Indonesian: page title, search placeholder, form field labels (customer name, vehicle info, discount), button labels (add to cart, checkout, print receipt, new transaction), table headers (item, type, quantity, price, subtotal, actions), cart summary labels (subtotal, discount, total), dialog content, validation messages, and toast notifications."
+        },
+        {
+          "path": "frontend/src/pages/TransactionHistoryPage.tsx",
+          "operation": "modify",
+          "description": "Replace all English text with Indonesian: page title, search placeholder, date range labels, button labels (view details, print, delete, clear filters), table headers (ID, date, customer, vehicle, total, actions), dialog titles and content, and toast notifications."
+        },
+        {
+          "path": "frontend/src/pages/ReportsPage.tsx",
+          "operation": "modify",
+          "description": "Replace all English text with Indonesian: page title, tab labels (daily report, monthly report, top selling items, profit/loss), date pickers and labels, table headers, metric labels (revenue, transactions, profit, loss), button labels, and any status or error messages."
+        },
+        {
+          "path": "frontend/src/pages/SettingsPage.tsx",
+          "operation": "modify",
+          "description": "Replace all English text with Indonesian: page title, form field labels (shop name, address, phone number, thank you message, logo), button labels (save, upload, remove), placeholder text, upload progress messages, validation messages, and toast notifications."
+        },
+        {
+          "path": "frontend/src/components/Receipt.tsx",
+          "operation": "modify",
+          "description": "Replace all English text with Indonesian: receipt headers and labels (date, customer, vehicle, item list headers, subtotal, discount, total, thank you message). Ensure all printed receipt content uses Indonesian text."
         }
       ]
     }

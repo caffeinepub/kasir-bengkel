@@ -1,250 +1,255 @@
 import { useState } from 'react';
-import { TrendingUp, ShoppingBag, Receipt, Trophy, Calendar, DollarSign } from 'lucide-react';
+import { TrendingUp, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useDailyReport, useMonthlyReport, useTopSellingItems, useProfitLoss } from '@/hooks/useQueries';
 import { formatRupiah, getStartOfDay, getStartOfMonth, dateToNanoseconds } from '@/lib/utils';
 
 export default function ReportsPage() {
-  const today = new Date();
-  const [selectedDate, setSelectedDate] = useState(today.toISOString().split('T')[0]);
-  const [selectedMonth, setSelectedMonth] = useState(today.toISOString().slice(0, 7));
-  const [profitStartDate, setProfitStartDate] = useState(today.toISOString().split('T')[0]);
-  const [profitEndDate, setProfitEndDate] = useState(today.toISOString().split('T')[0]);
+  const today = new Date().toISOString().split('T')[0];
+  const thisMonth = today.slice(0, 7);
 
-  const dayTs = getStartOfDay(new Date(selectedDate + 'T00:00:00'));
-  const monthTs = getStartOfMonth(new Date(selectedMonth + '-01'));
+  const [dailyDate, setDailyDate] = useState(today);
+  const [monthlyMonth, setMonthlyMonth] = useState(thisMonth);
+  const [topCount, setTopCount] = useState(10);
+  const [profitStart, setProfitStart] = useState(today);
+  const [profitEnd, setProfitEnd] = useState(today);
 
-  // Profit/Loss date range: start of start day to end of end day
-  const profitStart = (() => {
-    const d = new Date(profitStartDate + 'T00:00:00');
-    d.setHours(0, 0, 0, 0);
-    return dateToNanoseconds(d);
-  })();
-  const profitEnd = (() => {
-    const d = new Date(profitEndDate + 'T23:59:59');
-    d.setHours(23, 59, 59, 999);
-    return dateToNanoseconds(d);
-  })();
+  // Convert date strings to bigint nanoseconds for the hooks
+  const dailyTs = dailyDate
+    ? getStartOfDay(new Date(dailyDate + 'T00:00:00'))
+    : null;
+  const monthlyTs = monthlyMonth
+    ? getStartOfMonth(new Date(monthlyMonth + '-01'))
+    : null;
 
-  const { data: dailyReport, isLoading: loadingDaily } = useDailyReport(dayTs);
-  const { data: monthlyReport, isLoading: loadingMonthly } = useMonthlyReport(monthTs);
-  const { data: topItems = [], isLoading: loadingTop } = useTopSellingItems(BigInt(10));
-  const { data: profitLoss, isLoading: loadingProfit } = useProfitLoss(profitStart, profitEnd);
+  const profitStartTs = profitStart
+    ? (() => {
+        const d = new Date(profitStart + 'T00:00:00');
+        d.setHours(0, 0, 0, 0);
+        return dateToNanoseconds(d);
+      })()
+    : null;
+  const profitEndTs = profitEnd
+    ? (() => {
+        const d = new Date(profitEnd + 'T23:59:59');
+        d.setHours(23, 59, 59, 999);
+        return dateToNanoseconds(d);
+      })()
+    : null;
+
+  const { data: dailyReport, isLoading: dailyLoading } = useDailyReport(dailyTs);
+  const { data: monthlyReport, isLoading: monthlyLoading } = useMonthlyReport(monthlyTs);
+  const { data: topItems = [], isLoading: topLoading } = useTopSellingItems(BigInt(topCount));
+  const { data: profitData, isLoading: profitLoading, refetch: refetchProfit } = useProfitLoss(
+    profitStartTs,
+    profitEndTs
+  );
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
+    <div className="p-6 space-y-6">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Laporan</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Ringkasan penjualan harian, bulanan, dan laba rugi</p>
+        <p className="text-sm text-muted-foreground mt-1">Analisis performa bisnis bengkel Anda</p>
       </div>
 
       <Tabs defaultValue="daily">
-        <TabsList className="mb-6">
-          <TabsTrigger value="daily" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" /> Harian
-          </TabsTrigger>
-          <TabsTrigger value="monthly" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" /> Bulanan
-          </TabsTrigger>
-          <TabsTrigger value="top" className="flex items-center gap-2">
-            <Trophy className="w-4 h-4" /> Terlaris
-          </TabsTrigger>
-          <TabsTrigger value="profit" className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4" /> Laba Rugi
-          </TabsTrigger>
+        <TabsList className="mb-4">
+          <TabsTrigger value="daily">Laporan Harian</TabsTrigger>
+          <TabsTrigger value="monthly">Laporan Bulanan</TabsTrigger>
+          <TabsTrigger value="top">Barang Terlaris</TabsTrigger>
+          <TabsTrigger value="profit">Laba Rugi</TabsTrigger>
         </TabsList>
 
-        {/* Daily */}
-        <TabsContent value="daily">
-          <div className="flex items-center gap-3 mb-6">
-            <label className="text-sm font-medium text-muted-foreground">Pilih Tanggal:</label>
-            <input
+        {/* Daily Report */}
+        <TabsContent value="daily" className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-foreground">Tanggal:</label>
+            <Input
               type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
+              value={dailyDate}
+              onChange={(e) => setDailyDate(e.target.value)}
+              className="w-44"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard
-              title="Total Pendapatan"
-              icon={<TrendingUp className="w-5 h-5 text-brand" />}
-              value={loadingDaily ? null : formatRupiah(Number(dailyReport?.totalRevenue ?? 0))}
-              subtitle={selectedDate}
-            />
-            <StatCard
-              title="Jumlah Transaksi"
-              icon={<Receipt className="w-5 h-5 text-brand" />}
-              value={loadingDaily ? null : String(dailyReport?.transactionCount ?? 0)}
-              subtitle="transaksi hari ini"
-            />
-          </div>
+          {dailyLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
+              <Loader2 className="animate-spin" size={20} />
+              <span>Memuat laporan...</span>
+            </div>
+          ) : dailyReport ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Pendapatan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-brand">{formatRupiah(Number(dailyReport.totalRevenue))}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Jumlah Transaksi</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{String(dailyReport.transactionCount)}</p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
         </TabsContent>
 
-        {/* Monthly */}
-        <TabsContent value="monthly">
-          <div className="flex items-center gap-3 mb-6">
-            <label className="text-sm font-medium text-muted-foreground">Pilih Bulan:</label>
-            <input
+        {/* Monthly Report */}
+        <TabsContent value="monthly" className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-foreground">Bulan:</label>
+            <Input
               type="month"
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
+              value={monthlyMonth}
+              onChange={(e) => setMonthlyMonth(e.target.value)}
+              className="w-44"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard
-              title="Total Pendapatan Bulan Ini"
-              icon={<TrendingUp className="w-5 h-5 text-brand" />}
-              value={loadingMonthly ? null : formatRupiah(Number(monthlyReport?.totalRevenue ?? 0))}
-              subtitle={selectedMonth}
-            />
-            <StatCard
-              title="Jumlah Transaksi"
-              icon={<Receipt className="w-5 h-5 text-brand" />}
-              value={loadingMonthly ? null : String(monthlyReport?.transactionCount ?? 0)}
-              subtitle="transaksi bulan ini"
-            />
-          </div>
+          {monthlyLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
+              <Loader2 className="animate-spin" size={20} />
+              <span>Memuat laporan...</span>
+            </div>
+          ) : monthlyReport ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Pendapatan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-brand">{formatRupiah(Number(monthlyReport.totalRevenue))}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Jumlah Transaksi</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{String(monthlyReport.transactionCount)}</p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
         </TabsContent>
 
         {/* Top Selling */}
-        <TabsContent value="top">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-brand" /> 10 Item Terlaris
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Berdasarkan total kuantitas terjual</p>
+        <TabsContent value="top" className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-foreground">Tampilkan:</label>
+            <Input
+              type="number"
+              value={topCount}
+              onChange={(e) => setTopCount(Math.max(1, Number(e.target.value)))}
+              className="w-24"
+              min={1}
+              max={100}
+            />
+            <span className="text-sm text-muted-foreground">barang teratas</span>
           </div>
-          <div className="rounded-xl border border-border overflow-hidden">
-            {loadingTop ? (
-              <div className="p-4 space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-4 flex-1" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                ))}
-              </div>
-            ) : topItems.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p>Belum ada data penjualan</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {topItems.map(([name, qty], idx) => (
-                  <div key={name} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                      idx === 0 ? 'bg-yellow-500 text-white' :
-                      idx === 1 ? 'bg-gray-400 text-white' :
-                      idx === 2 ? 'bg-amber-700 text-white' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {idx + 1}
-                    </div>
-                    <span className="flex-1 font-medium">{name}</span>
-                    <Badge variant="secondary" className="font-mono">
-                      {String(qty)} terjual
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {topLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
+              <Loader2 className="animate-spin" size={20} />
+              <span>Memuat data...</span>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-card overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Peringkat</TableHead>
+                    <TableHead>Nama Barang</TableHead>
+                    <TableHead className="text-right">Total Terjual</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        Belum ada data penjualan
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    topItems.map(([name, count], i) => (
+                      <TableRow key={name}>
+                        <TableCell className="font-medium">#{i + 1}</TableCell>
+                        <TableCell>{name}</TableCell>
+                        <TableCell className="text-right font-semibold">{String(count)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Profit / Loss */}
-        <TabsContent value="profit">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
-              <DollarSign className="w-5 h-5 text-brand" /> Laporan Laba Rugi
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Laba dihitung dari (Harga Jual − Harga Beli) × Qty untuk setiap barang yang terjual dalam periode yang dipilih.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 rounded-xl border border-border bg-muted/20">
+        {/* Profit/Loss */}
+        <TabsContent value="profit" className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Dari Tanggal:</label>
-              <input
+              <label className="text-sm font-medium text-foreground whitespace-nowrap">Dari:</label>
+              <Input
                 type="date"
-                value={profitStartDate}
-                onChange={e => setProfitStartDate(e.target.value)}
-                className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
+                value={profitStart}
+                onChange={(e) => setProfitStart(e.target.value)}
+                className="w-44"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Sampai Tanggal:</label>
-              <input
+              <label className="text-sm font-medium text-foreground whitespace-nowrap">Sampai:</label>
+              <Input
                 type="date"
-                value={profitEndDate}
-                min={profitStartDate}
-                onChange={e => setProfitEndDate(e.target.value)}
-                className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
+                value={profitEnd}
+                onChange={(e) => setProfitEnd(e.target.value)}
+                className="w-44"
               />
             </div>
+            <Button onClick={() => refetchProfit()} disabled={profitLoading} size="sm">
+              {profitLoading ? (
+                <Loader2 size={14} className="mr-1.5 animate-spin" />
+              ) : (
+                <TrendingUp size={14} className="mr-1.5" />
+              )}
+              Hitung
+            </Button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card className="border-border sm:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Laba Kotor
-                </CardTitle>
-                <DollarSign className="w-5 h-5 text-brand" />
+          {profitLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
+              <Loader2 className="animate-spin" size={20} />
+              <span>Menghitung laba rugi...</span>
+            </div>
+          ) : profitData !== undefined && profitData !== null ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Laba Kotor</CardTitle>
               </CardHeader>
               <CardContent>
-                {loadingProfit ? (
-                  <Skeleton className="h-10 w-48" />
-                ) : (
-                  <>
-                    <div className={`text-3xl font-bold ${Number(profitLoss ?? 0) >= 0 ? 'text-green-500' : 'text-destructive'}`}>
-                      {formatRupiah(Number(profitLoss ?? 0))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Periode: {profitStartDate} s/d {profitEndDate}
-                    </p>
-                  </>
-                )}
+                <p className={`text-3xl font-bold ${Number(profitData) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {formatRupiah(Number(profitData))}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Periode: {profitStart} s/d {profitEnd}
+                </p>
               </CardContent>
             </Card>
-          </div>
-
-          <div className="mt-4 p-4 rounded-xl border border-border bg-muted/10 text-sm text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Catatan:</p>
-            <ul className="list-disc list-inside space-y-0.5">
-              <li>Laba dihitung hanya untuk item bertipe <strong>Barang</strong> (bukan Jasa).</li>
-              <li>Rumus: Σ (Harga Jual − Harga Beli) × Qty terjual.</li>
-              <li>Jika harga beli lebih tinggi dari harga jual, item tersebut tidak dihitung (dianggap 0).</li>
-            </ul>
-          </div>
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function StatCard({ title, icon, value, subtitle }: { title: string; icon: React.ReactNode; value: string | null; subtitle: string }) {
-  return (
-    <Card className="border-border">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        {value === null ? (
-          <Skeleton className="h-8 w-32" />
-        ) : (
-          <div className="text-3xl font-bold text-foreground">{value}</div>
-        )}
-        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-      </CardContent>
-    </Card>
   );
 }

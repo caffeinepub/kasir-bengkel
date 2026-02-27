@@ -1,68 +1,57 @@
-import { Link, useRouterState } from '@tanstack/react-router';
-import { ShoppingCart, Package, History, BarChart2, Settings, Wrench } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Link, useLocation } from '@tanstack/react-router';
+import { ShoppingCart, Package, History, BarChart2, Settings } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Kasir', icon: ShoppingCart },
-  { to: '/inventory', label: 'Inventory', icon: Package },
-  { to: '/transactions', label: 'Riwayat', icon: History },
-  { to: '/reports', label: 'Laporan', icon: BarChart2 },
-  { to: '/settings', label: 'Pengaturan', icon: Settings },
+  { label: 'Kasir', icon: ShoppingCart, path: '/' },
+  { label: 'Inventori', icon: Package, path: '/inventory' },
+  { label: 'Transaksi', icon: History, path: '/transactions' },
+  { label: 'Laporan', icon: BarChart2, path: '/reports' },
+  { label: 'Pengaturan', icon: Settings, path: '/settings' },
 ];
 
 export default function Sidebar() {
-  const routerState = useRouterState();
-  const currentPath = routerState.location.pathname;
+  const location = useLocation();
 
   return (
-    <aside className="no-print w-64 bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
-      {/* Logo & Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-        <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shrink-0">
-          <Wrench className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="font-bold text-sidebar-foreground text-sm leading-tight">Kasir Bengkel</p>
-          <p className="text-xs text-muted-foreground">Workshop POS</p>
+    <aside className="sidebar-nav flex flex-col w-64 min-h-screen bg-sidebar text-sidebar-foreground shadow-lg">
+      <div className="px-6 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <img
+            src="/assets/generated/bengkel-logo.dim_256x256.png"
+            alt="Logo"
+            className="w-10 h-10 rounded-lg object-cover"
+          />
+          <div>
+            <h1 className="text-lg font-bold text-brand leading-tight">Kasir Bengkel</h1>
+            <p className="text-xs text-sidebar-foreground/60">Manajemen Toko</p>
+          </div>
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ to, label, icon: Icon }) => {
-          const isActive = to === '/' ? currentPath === '/' : currentPath.startsWith(to);
+        {navItems.map(({ label, icon: Icon, path }) => {
+          const isActive = location.pathname === path;
           return (
             <Link
-              key={to}
-              to={to}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+              key={path}
+              to={path}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-brand text-white shadow-sm'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
+                  ? 'bg-brand text-white'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+              }`}
             >
-              <Icon className="w-4 h-4 shrink-0" />
+              <Icon size={18} />
               {label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-sidebar-border">
-        <p className="text-xs text-muted-foreground text-center">
-          Built with ❤️ using{' '}
-          <a
-            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname || 'kasir-bengkel')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-brand hover:underline"
-          >
-            caffeine.ai
-          </a>
+      <div className="px-4 py-4 border-t border-sidebar-border">
+        <p className="text-xs text-sidebar-foreground/40 text-center">
+          © {new Date().getFullYear()} Kasir Bengkel
         </p>
-        <p className="text-xs text-muted-foreground text-center mt-0.5">© {new Date().getFullYear()}</p>
       </div>
     </aside>
   );

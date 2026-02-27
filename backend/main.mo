@@ -8,7 +8,7 @@ import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
-import Migration "migration";
+
 
 actor {
   include MixinStorage();

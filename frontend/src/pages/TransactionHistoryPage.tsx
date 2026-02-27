@@ -1,34 +1,43 @@
-import { useState, useRef } from 'react';
-import { Search, Printer, Eye, Trash2, Calendar } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { Search, Eye, Printer, Trash2, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import Receipt from '@/components/Receipt';
-import { useTransactions, useShopSettings } from '@/hooks/useQueries';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { useTransactions, useDeleteTransaction, useShopSettings } from '@/hooks/useQueries';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
-import type { Transaction } from '../backend';
-import { useActor } from '@/hooks/useActor';
-import { useQueryClient } from '@tanstack/react-query';
+import type { Transaction } from '@/backend';
+import Receipt from '@/components/Receipt';
 
 export default function TransactionHistoryPage() {
+  const { data: transactions = [], isLoading } = useTransactions();
+  const { data: shopSettings } = useShopSettings();
+  const deleteTransaction = useDeleteTransaction();
+
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [printTx, setPrintTx] = useState<Transaction | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
 
-  const { data: transactions = [], isLoading } = useTransactions();
-  const { data: settings } = useShopSettings();
-  const { actor } = useActor();
-  const qc = useQueryClient();
-
-  const filtered = transactions.filter(tx => {
+  const filtered = transactions.filter((tx) => {
     const matchSearch =
       tx.customerName.toLowerCase().includes(search.toLowerCase()) ||
       tx.vehicleInfo.toLowerCase().includes(search.toLowerCase()) ||
@@ -39,126 +48,136 @@ export default function TransactionHistoryPage() {
     const matchTo = dateTo ? txDate <= new Date(dateTo + 'T23:59:59') : true;
 
     return matchSearch && matchFrom && matchTo;
-  }).sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+  });
 
-  const handlePrint = (tx: Transaction) => {
-    setPrintTx(tx);
-    setTimeout(() => window.print(), 300);
-  };
+  function openDetail(tx: Transaction) {
+    setSelectedTx(tx);
+    setShowDetailDialog(true);
+  }
 
-  const handleDelete = async (id: bigint) => {
-    if (!actor) return;
+  function openDelete(tx: Transaction) {
+    setTxToDelete(tx);
+    setShowDeleteDialog(true);
+  }
+
+  async function handleDelete() {
+    if (!txToDelete) return;
     try {
-      await actor.deleteTransaction(id);
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-      toast.success('Transaksi dihapus');
-    } catch {
-      toast.error('Gagal menghapus transaksi');
+      await deleteTransaction.mutateAsync(txToDelete.id);
+      toast.success('Transaksi berhasil dihapus');
+      setShowDeleteDialog(false);
+      setTxToDelete(null);
+    } catch (e: unknown) {
+      toast.error('Gagal menghapus transaksi: ' + (e instanceof Error ? e.message : String(e)));
     }
-  };
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
+  function clearFilters() {
+    setSearch('');
+    setDateFrom('');
+    setDateTo('');
+  }
+
+  const hasFilters = search || dateFrom || dateTo;
 
   return (
-    <div className="p-6">
-      {/* Print-only receipt */}
-      {printTx && (
-        <div className="print-only">
-          <Receipt ref={receiptRef} transaction={printTx} settings={settings ?? null} />
-        </div>
-      )}
-
-      <div className="mb-6">
+    <div className="p-6 space-y-6">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Riwayat Transaksi</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Lihat dan kelola semua transaksi</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {transactions.length} transaksi tercatat
+        </p>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
+      <div className="flex flex-wrap gap-3 items-end">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Cari pelanggan, kendaraan, ID..."
+            placeholder="Cari pelanggan, kendaraan, atau ID..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-40" />
-          <span className="text-muted-foreground">–</span>
-          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-40" />
-          {(dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>Reset</Button>
-          )}
+          <label className="text-sm text-muted-foreground whitespace-nowrap">Dari:</label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-40"
+          />
         </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground whitespace-nowrap">Sampai:</label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-40"
+          />
+        </div>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X size={14} className="mr-1" />
+            Hapus Filter
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-xl border border-border overflow-hidden">
+      {/* Table */}
+      <div className="rounded-lg border bg-card overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>No.</TableHead>
+            <TableRow>
+              <TableHead>ID</TableHead>
               <TableHead>Tanggal</TableHead>
               <TableHead>Pelanggan</TableHead>
               <TableHead>Kendaraan</TableHead>
-              <TableHead>Item</TableHead>
               <TableHead>Total</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
-                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                  ))}
-                </TableRow>
-              ))
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+                  Memuat data...
+                </TableCell>
+              </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                  Tidak ada transaksi ditemukan
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  {hasFilters ? 'Tidak ada transaksi yang cocok dengan filter' : 'Belum ada transaksi'}
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map(tx => (
-                <TableRow key={String(tx.id)} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-sm">#{String(tx.id).padStart(5, '0')}</TableCell>
+              [...filtered].reverse().map((tx) => (
+                <TableRow key={String(tx.id)}>
+                  <TableCell className="font-mono text-sm">#{String(tx.id)}</TableCell>
                   <TableCell className="text-sm">{formatDateTime(tx.timestamp)}</TableCell>
-                  <TableCell className="font-medium">{tx.customerName || '-'}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{tx.vehicleInfo || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{tx.items.length} item</Badge>
-                  </TableCell>
-                  <TableCell className="font-bold text-brand">{formatRupiah(Number(tx.total))}</TableCell>
+                  <TableCell className="font-medium">{tx.customerName}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{tx.vehicleInfo || '—'}</TableCell>
+                  <TableCell className="font-semibold text-brand">{formatRupiah(Number(tx.total))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedTx(tx)}>
-                        <Eye className="w-3.5 h-3.5" />
+                      <Button variant="ghost" size="icon" onClick={() => openDetail(tx)}>
+                        <Eye size={15} />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-brand" onClick={() => handlePrint(tx)}>
-                        <Printer className="w-3.5 h-3.5" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => openDelete(tx)}
+                      >
+                        <Trash2 size={15} />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Transaksi?</AlertDialogTitle>
-                            <AlertDialogDescription>Transaksi #{String(tx.id).padStart(5, '0')} akan dihapus permanen.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => handleDelete(tx.id)}>
-                              Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -169,44 +188,46 @@ export default function TransactionHistoryPage() {
       </div>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selectedTx} onOpenChange={open => !open && setSelectedTx(null)}>
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Detail Transaksi #{selectedTx ? String(selectedTx.id).padStart(5, '0') : ''}</DialogTitle>
+            <DialogTitle>Detail Transaksi #{selectedTx ? String(selectedTx.id) : ''}</DialogTitle>
           </DialogHeader>
           {selectedTx && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Tanggal</div>
-                <div>{formatDateTime(selectedTx.timestamp)}</div>
-                <div className="text-muted-foreground">Pelanggan</div>
-                <div className="font-medium">{selectedTx.customerName || '-'}</div>
-                <div className="text-muted-foreground">Kendaraan</div>
-                <div>{selectedTx.vehicleInfo || '-'}</div>
-              </div>
-              <div className="border-t border-border pt-3">
-                <p className="text-sm font-semibold mb-2">Item</p>
-                <div className="space-y-1">
-                  {selectedTx.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span>{item.name} × {String(item.quantity)}</span>
-                      <span className="font-medium">{formatRupiah(Number(item.price) * Number(item.quantity))}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="border-t border-border pt-3 flex justify-between font-bold">
-                <span>Total</span>
-                <span className="text-brand">{formatRupiah(Number(selectedTx.total))}</span>
-              </div>
-              <Button
-                className="w-full bg-brand hover:bg-brand-dark text-white"
-                onClick={() => { handlePrint(selectedTx); setSelectedTx(null); }}
-              >
-                <Printer className="w-4 h-4 mr-2" /> Cetak Struk
-              </Button>
+              <Receipt
+                transaction={selectedTx}
+                shopSettings={shopSettings ?? undefined}
+              />
             </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Tutup</Button>
+            <Button onClick={handlePrint}>
+              <Printer size={14} className="mr-1.5" />
+              Cetak
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Transaksi</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus transaksi #{txToDelete ? String(txToDelete.id) : ''}?
+              Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Batal</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteTransaction.isPending}>
+              {deleteTransaction.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              Hapus
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

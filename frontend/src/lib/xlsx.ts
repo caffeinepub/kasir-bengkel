@@ -1,91 +1,103 @@
-/**
- * Minimal XLSX (Office Open XML) writer/reader
- * Creates valid .xlsx files compatible with all Excel versions
- * No external dependencies required
- */
+// Self-contained XLSX writer and reader (no external dependencies)
+// Uses CompressionStream/DecompressionStream (available in modern browsers)
 
-// Minimal CRC32 for ZIP
-const crcTable = (() => {
-  const t: number[] = [];
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c;
+// ─── CRC-32 ──────────────────────────────────────────────────────────────────
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[i] = c;
   }
   return t;
 })();
 
-function crc32(buf: Uint8Array): number {
+function crc32(data: Uint8Array): number {
   let crc = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+  for (let i = 0; i < data.length; i++) {
+    crc = CRC_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  }
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function u16(n: number): Uint8Array {
-  return new Uint8Array([n & 0xff, (n >> 8) & 0xff]);
-}
-function u32(n: number): Uint8Array {
-  return new Uint8Array([n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff]);
+// ─── Ensure plain ArrayBuffer-backed Uint8Array ───────────────────────────────
+function toPlainUint8Array(data: Uint8Array): Uint8Array<ArrayBuffer> {
+  const buf = new ArrayBuffer(data.length);
+  const out = new Uint8Array(buf);
+  out.set(data);
+  return out as Uint8Array<ArrayBuffer>;
 }
 
-function concat(...arrays: Uint8Array[]): Uint8Array {
-  const total = arrays.reduce((s, a) => s + a.length, 0);
-  const out = new Uint8Array(total);
+// ─── Compression (raw DEFLATE for ZIP) ───────────────────────────────────────
+async function deflateRaw(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  try {
+    const cs = new CompressionStream('deflate-raw');
+    const writer = cs.writable.getWriter();
+    const reader = cs.readable.getReader();
+    writer.write(toPlainUint8Array(data));
+    writer.close();
+    const chunks: Uint8Array[] = [];
+    let totalLen = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      totalLen += value.length;
+    }
+    const buf = new ArrayBuffer(totalLen);
+    const out = new Uint8Array(buf);
+    let offset = 0;
+    for (const chunk of chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return out as Uint8Array<ArrayBuffer>;
+  } catch {
+    // Fallback: store uncompressed
+    return toPlainUint8Array(data);
+  }
+}
+
+async function decompressDeflateRaw(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  const safe = toPlainUint8Array(data);
+  const ds = new DecompressionStream('deflate-raw');
+  const writer = ds.writable.getWriter();
+  const reader = ds.readable.getReader();
+  writer.write(safe);
+  writer.close();
+  const chunks: Uint8Array[] = [];
+  let totalLen = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLen += value.length;
+  }
+  const buf = new ArrayBuffer(totalLen);
+  const out = new Uint8Array(buf);
   let offset = 0;
-  for (const a of arrays) { out.set(a, offset); offset += a.length; }
-  return out;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out as Uint8Array<ArrayBuffer>;
+}
+
+// ─── Little-endian helpers ────────────────────────────────────────────────────
+function u16(v: number, buf: Uint8Array, off: number) {
+  buf[off] = v & 0xff;
+  buf[off + 1] = (v >> 8) & 0xff;
+}
+function u32(v: number, buf: Uint8Array, off: number) {
+  buf[off] = v & 0xff;
+  buf[off + 1] = (v >> 8) & 0xff;
+  buf[off + 2] = (v >> 16) & 0xff;
+  buf[off + 3] = (v >> 24) & 0xff;
 }
 
 const enc = new TextEncoder();
 
-function deflateRaw(data: Uint8Array): Uint8Array {
-  // Store method (no compression) - always compatible
-  // Split into 65535-byte blocks
-  const blocks: Uint8Array[] = [];
-  let offset = 0;
-  while (offset < data.length) {
-    const end = Math.min(offset + 65535, data.length);
-    const block = data.slice(offset, end);
-    const isLast = end === data.length ? 1 : 0;
-    const len = block.length;
-    const nlen = (~len) & 0xffff;
-    blocks.push(new Uint8Array([isLast, len & 0xff, (len >> 8) & 0xff, nlen & 0xff, (nlen >> 8) & 0xff]));
-    blocks.push(block);
-    offset = end;
-  }
-  if (data.length === 0) {
-    blocks.push(new Uint8Array([1, 0, 0, 0xff, 0xff]));
-  }
-  return concat(...blocks);
-}
-
-function deflate(data: Uint8Array): Uint8Array {
-  const raw = deflateRaw(data);
-  // zlib header: CMF=0x78 (deflate, window=32k), FLG computed so CMF*256+FLG % 31 == 0
-  const cmf = 0x78;
-  const flg = 0x9c; // 0x789c is standard zlib no-compression header
-  const adler = adler32(data);
-  return concat(
-    new Uint8Array([cmf, flg]),
-    raw,
-    new Uint8Array([
-      (adler >> 24) & 0xff,
-      (adler >> 16) & 0xff,
-      (adler >> 8) & 0xff,
-      adler & 0xff,
-    ])
-  );
-}
-
-function adler32(data: Uint8Array): number {
-  let s1 = 1, s2 = 0;
-  for (let i = 0; i < data.length; i++) {
-    s1 = (s1 + data[i]) % 65521;
-    s2 = (s2 + s1) % 65521;
-  }
-  return (s2 << 16) | s1;
-}
-
+// ─── ZIP builder ─────────────────────────────────────────────────────────────
 interface ZipEntry {
   name: string;
   data: Uint8Array;
@@ -94,82 +106,103 @@ interface ZipEntry {
   offset: number;
 }
 
-function zipFile(files: { name: string; data: string }[]): Uint8Array<ArrayBuffer> {
+async function zipFile(files: { name: string; data: string }[]): Promise<Uint8Array<ArrayBuffer>> {
   const entries: ZipEntry[] = [];
-  const localHeaders: Uint8Array[] = [];
-  let offset = 0;
 
   for (const f of files) {
-    const data = enc.encode(f.data);
-    const compressed = deflate(data);
-    const crc = crc32(data);
-    const nameBytes = enc.encode(f.name);
+    const raw = enc.encode(f.data);
+    const crc = crc32(raw);
+    let compressed: Uint8Array = await deflateRaw(raw);
+    // If compression doesn't help, store uncompressed
+    if (compressed.length >= raw.length) {
+      compressed = toPlainUint8Array(raw);
+    }
+    entries.push({ name: f.name, data: raw, compressed, crc, offset: 0 });
+  }
 
-    // Local file header
-    const lh = concat(
-      new Uint8Array([0x50, 0x4b, 0x03, 0x04]), // signature
-      u16(20),        // version needed
-      u16(0),         // flags
-      u16(8),         // compression: deflate
-      u16(0), u16(0), // mod time/date
-      u32(crc),
-      u32(compressed.length),
-      u32(data.length),
-      u16(nameBytes.length),
-      u16(0),         // extra length
-      nameBytes,
-      compressed
-    );
+  // Build local file headers + data
+  const parts: Uint8Array[] = [];
+  let offset = 0;
 
-    entries.push({ name: f.name, data, compressed, crc, offset });
-    localHeaders.push(lh);
-    offset += lh.length;
+  for (const entry of entries) {
+    entry.offset = offset;
+    const nameBytes = enc.encode(entry.name);
+    const method = entry.compressed === entry.data ? 0 : 8; // 0=store, 8=deflate
+    const header = new Uint8Array(30 + nameBytes.length);
+    u32(0x04034b50, header, 0);  // local file header sig
+    u16(20, header, 4);           // version needed
+    u16(0, header, 6);            // flags
+    u16(method, header, 8);       // compression method
+    u16(0, header, 10);           // mod time
+    u16(0, header, 12);           // mod date
+    u32(entry.crc, header, 14);   // crc32
+    u32(entry.compressed.length, header, 18); // compressed size
+    u32(entry.data.length, header, 22);       // uncompressed size
+    u16(nameBytes.length, header, 26);        // filename length
+    u16(0, header, 28);           // extra field length
+    header.set(nameBytes, 30);
+    parts.push(header);
+    parts.push(entry.compressed);
+    offset += header.length + entry.compressed.length;
   }
 
   // Central directory
-  const centralDir: Uint8Array[] = [];
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    const nameBytes = enc.encode(e.name);
-    const cd = concat(
-      new Uint8Array([0x50, 0x4b, 0x01, 0x02]), // signature
-      u16(20), u16(20), // version made by / needed
-      u16(0),           // flags
-      u16(8),           // compression
-      u16(0), u16(0),   // mod time/date
-      u32(e.crc),
-      u32(e.compressed.length),
-      u32(e.data.length),
-      u16(nameBytes.length),
-      u16(0), u16(0),   // extra, comment
-      u16(0),           // disk start
-      u16(0), u16(0),   // internal/external attrs
-      u32(e.offset),
-      nameBytes
-    );
-    centralDir.push(cd);
-  }
-
-  const cdBytes = concat(...centralDir);
+  const cdParts: Uint8Array[] = [];
+  let cdSize = 0;
   const cdOffset = offset;
 
-  // End of central directory
-  const eocd = concat(
-    new Uint8Array([0x50, 0x4b, 0x05, 0x06]),
-    u16(0), u16(0),
-    u16(entries.length), u16(entries.length),
-    u32(cdBytes.length),
-    u32(cdOffset),
-    u16(0)
-  );
+  for (const entry of entries) {
+    const nameBytes = enc.encode(entry.name);
+    const method = entry.compressed === entry.data ? 0 : 8;
+    const cd = new Uint8Array(46 + nameBytes.length);
+    u32(0x02014b50, cd, 0);       // central dir sig
+    u16(20, cd, 4);               // version made by
+    u16(20, cd, 6);               // version needed
+    u16(0, cd, 8);                // flags
+    u16(method, cd, 10);          // compression method
+    u16(0, cd, 12);               // mod time
+    u16(0, cd, 14);               // mod date
+    u32(entry.crc, cd, 16);       // crc32
+    u32(entry.compressed.length, cd, 20); // compressed size
+    u32(entry.data.length, cd, 24);       // uncompressed size
+    u16(nameBytes.length, cd, 28);        // filename length
+    u16(0, cd, 30);               // extra field length
+    u16(0, cd, 32);               // file comment length
+    u16(0, cd, 34);               // disk number start
+    u16(0, cd, 36);               // internal attributes
+    u32(0, cd, 38);               // external attributes
+    u32(entry.offset, cd, 42);    // relative offset
+    cd.set(nameBytes, 46);
+    cdParts.push(cd);
+    cdSize += cd.length;
+  }
 
-  const result = concat(...localHeaders, cdBytes, eocd);
-  // Ensure the buffer is a plain ArrayBuffer (not SharedArrayBuffer) for Blob compatibility
-  return new Uint8Array(result.buffer.slice(result.byteOffset, result.byteOffset + result.byteLength) as ArrayBuffer);
+  // End of central directory
+  const eocd = new Uint8Array(22);
+  u32(0x06054b50, eocd, 0);       // EOCD sig
+  u16(0, eocd, 4);                // disk number
+  u16(0, eocd, 6);                // disk with CD
+  u16(entries.length, eocd, 8);   // entries on disk
+  u16(entries.length, eocd, 10);  // total entries
+  u32(cdSize, eocd, 12);          // CD size
+  u32(cdOffset, eocd, 16);        // CD offset
+  u16(0, eocd, 20);               // comment length
+
+  // Concatenate everything
+  const allParts = [...parts, ...cdParts, eocd];
+  const totalLen = allParts.reduce((s, p) => s + p.length, 0);
+  const buffer = new ArrayBuffer(totalLen);
+  const result = new Uint8Array(buffer);
+  let pos = 0;
+  for (const p of allParts) {
+    result.set(p, pos);
+    pos += p.length;
+  }
+  return result as Uint8Array<ArrayBuffer>;
 }
 
-// XML escape
-function xe(s: string): string {
+// ─── XML helpers ─────────────────────────────────────────────────────────────
+function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -178,287 +211,229 @@ function xe(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-export interface XlsxCell {
-  v: string | number;
-  t: 's' | 'n'; // string or number
-  bold?: boolean;
-}
-
-export type XlsxRow = XlsxCell[];
-
-export function buildXlsx(rows: XlsxRow[]): Uint8Array<ArrayBuffer> {
+// ─── XLSX builder ────────────────────────────────────────────────────────────
+export async function buildXlsx(
+  headers: string[],
+  rows: (string | number)[][]
+): Promise<Uint8Array<ArrayBuffer>> {
   // Shared strings
-  const sharedStrings: string[] = [];
-  const ssMap = new Map<string, number>();
+  const strings: string[] = [];
+  const strIndex: Record<string, number> = {};
 
-  function getSS(s: string): number {
-    if (ssMap.has(s)) return ssMap.get(s)!;
-    const idx = sharedStrings.length;
-    sharedStrings.push(s);
-    ssMap.set(s, idx);
-    return idx;
-  }
-
-  // Build sheet data
-  const colLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P'];
-
-  let sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<sheetData>`;
-
-  for (let r = 0; r < rows.length; r++) {
-    const row = rows[r];
-    sheetXml += `<row r="${r + 1}">`;
-    for (let c = 0; c < row.length; c++) {
-      const cell = row[c];
-      const ref = `${colLetters[c]}${r + 1}`;
-      // Style index: 0=normal, 1=bold
-      const s = cell.bold ? ' s="1"' : '';
-      if (cell.t === 'n') {
-        sheetXml += `<c r="${ref}" t="n"${s}><v>${cell.v}</v></c>`;
-      } else {
-        const idx = getSS(String(cell.v));
-        sheetXml += `<c r="${ref}" t="s"${s}><v>${idx}</v></c>`;
-      }
+  function si(s: string): number {
+    if (strIndex[s] === undefined) {
+      strIndex[s] = strings.length;
+      strings.push(s);
     }
-    sheetXml += `</row>`;
+    return strIndex[s];
   }
 
-  sheetXml += `</sheetData></worksheet>`;
+  function colName(ci: number): string {
+    let name = '';
+    let n = ci;
+    do {
+      name = String.fromCharCode(65 + (n % 26)) + name;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return name;
+  }
+
+  // Build sheet rows XML
+  let sheetRowsXml = '';
+
+  // Header row (row 1)
+  let headerCells = '';
+  headers.forEach((h, ci) => {
+    const col = colName(ci);
+    headerCells += `<c r="${col}1" t="s"><v>${si(h)}</v></c>`;
+  });
+  sheetRowsXml += `<row r="1">${headerCells}</row>`;
+
+  // Data rows
+  rows.forEach((row, ri) => {
+    let cells = '';
+    row.forEach((val, ci) => {
+      const col = colName(ci);
+      const rowNum = ri + 2;
+      const ref = `${col}${rowNum}`;
+      if (typeof val === 'number') {
+        cells += `<c r="${ref}"><v>${val}</v></c>`;
+      } else if (val === '' || val === null || val === undefined) {
+        // empty cell — skip
+      } else {
+        cells += `<c r="${ref}" t="s"><v>${si(String(val))}</v></c>`;
+      }
+    });
+    sheetRowsXml += `<row r="${ri + 2}">${cells}</row>`;
+  });
 
   // Shared strings XML
-  const ssXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sharedStrings.length}" uniqueCount="${sharedStrings.length}">
-${sharedStrings.map(s => `<si><t xml:space="preserve">${xe(s)}</t></si>`).join('')}
-</sst>`;
+  const sstXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${strings.length}" uniqueCount="${strings.length}">` +
+    strings.map(s => `<si><t xml:space="preserve">${escapeXml(s)}</t></si>`).join('') +
+    `</sst>`;
 
-  // Styles XML with bold font
-  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2">
-<font><sz val="11"/><name val="Calibri"/></font>
-<font><b/><sz val="11"/><name val="Calibri"/></font>
-</fonts>
-<fills count="2">
-<fill><patternFill patternType="none"/></fill>
-<fill><patternFill patternType="gray125"/></fill>
-</fills>
-<borders count="1">
-<border><left/><right/><top/><bottom/><diagonal/></border>
-</borders>
-<cellStyleXfs count="1">
-<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-</cellStyleXfs>
-<cellXfs count="2">
-<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
-</cellXfs>
-</styleSheet>`;
+  // Sheet XML
+  const sheetXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<sheetData>${sheetRowsXml}</sheetData>` +
+    `</worksheet>`;
 
-  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets>
-<sheet name="Inventory" sheetId="1" r:id="rId1"/>
-</sheets>
-</workbook>`;
+  // Workbook XML
+  const workbookXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+    `<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>` +
+    `</workbook>`;
 
-  const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`;
+  // Styles XML (minimal)
+  const stylesXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>` +
+    `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
+    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+    `<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>` +
+    `</styleSheet>`;
 
-  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`;
+  // Relationships
+  const workbookRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
+    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>` +
+    `<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+    `</Relationships>`;
 
-  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
-<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-</Types>`;
+  const rootRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+    `</Relationships>`;
+
+  const contentTypes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+    `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+    `<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>` +
+    `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+    `</Types>`;
 
   return zipFile([
-    { name: '[Content_Types].xml', data: contentTypesXml },
-    { name: '_rels/.rels', data: relsXml },
+    { name: '[Content_Types].xml', data: contentTypes },
+    { name: '_rels/.rels', data: rootRels },
     { name: 'xl/workbook.xml', data: workbookXml },
     { name: 'xl/_rels/workbook.xml.rels', data: workbookRels },
     { name: 'xl/worksheets/sheet1.xml', data: sheetXml },
-    { name: 'xl/sharedStrings.xml', data: ssXml },
+    { name: 'xl/sharedStrings.xml', data: sstXml },
     { name: 'xl/styles.xml', data: stylesXml },
   ]);
 }
 
-export function downloadXlsx(rows: XlsxRow[], filename: string): void {
-  const bytes = buildXlsx(rows);
-  // bytes is Uint8Array<ArrayBuffer> — safe to pass to Blob
-  const blob = new Blob([bytes], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+// ─── XLSX reader ─────────────────────────────────────────────────────────────
+interface ZipFileEntry {
+  name: string;
+  data: Uint8Array;
 }
 
-// ─── XLSX Reader ────────────────────────────────────────────────────────────
-
-function colStrToIdx(col: string): number {
-  let idx = 0;
-  for (let i = 0; i < col.length; i++) {
-    idx = idx * 26 + (col.charCodeAt(i) - 64);
-  }
-  return idx - 1;
-}
-
-function extractRowsFromSheetXml(sheetXml: string, sharedStrs: string[]): string[][] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(sheetXml, 'application/xml');
-  const rows: string[][] = [];
-  const rowEls = doc.querySelectorAll('row');
-
-  rowEls.forEach(rowEl => {
-    const rIdx = parseInt(rowEl.getAttribute('r') || '1', 10) - 1;
-    while (rows.length <= rIdx) rows.push([]);
-    const row = rows[rIdx];
-
-    const cells = rowEl.querySelectorAll('c');
-    cells.forEach(cell => {
-      const ref = cell.getAttribute('r') || '';
-      const colStr = ref.replace(/[0-9]/g, '');
-      const colIdx = colStrToIdx(colStr);
-      while (row.length <= colIdx) row.push('');
-
-      const t = cell.getAttribute('t') || '';
-      const vEl = cell.querySelector('v');
-      const v = vEl?.textContent || '';
-
-      if (t === 's') {
-        row[colIdx] = sharedStrs[parseInt(v, 10)] ?? '';
-      } else if (t === 'inlineStr') {
-        const isEl = cell.querySelector('is t');
-        row[colIdx] = isEl?.textContent || '';
-      } else {
-        row[colIdx] = v;
-      }
-    });
-  });
-
-  return rows;
-}
-
-function extractSharedStrings(xml: string): string[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, 'application/xml');
-  const sharedStrs: string[] = [];
-  const sis = doc.querySelectorAll('si');
-  sis.forEach(si => {
-    const ts = si.querySelectorAll('t');
-    let text = '';
-    ts.forEach(t => { text += t.textContent || ''; });
-    sharedStrs.push(text);
-  });
-  return sharedStrs;
-}
-
-// ─── Async ZIP reader using DecompressionStream ──────────────────────────────
-
-async function decompressDeflateRaw(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
-  const ds = new DecompressionStream('deflate-raw');
-  const writer = ds.writable.getWriter();
-  const reader = ds.readable.getReader();
-
-  // Ensure we pass a Uint8Array<ArrayBuffer> to writer.write
-  const safeData = new Uint8Array(
-    data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
-  );
-  writer.write(safeData);
-  writer.close();
-
-  const chunks: Uint8Array[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) chunks.push(value);
-  }
-
-  const total = chunks.reduce((s, c) => s + c.length, 0);
-  const out = new Uint8Array(new ArrayBuffer(total));
-  let offset = 0;
-  for (const c of chunks) { out.set(c, offset); offset += c.length; }
-  return out;
-}
-
-async function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
-  const files: Record<string, Uint8Array> = {};
-  let i = 0;
-
-  while (i < data.length - 4) {
-    if (
-      data[i] === 0x50 && data[i + 1] === 0x4b &&
-      data[i + 2] === 0x03 && data[i + 3] === 0x04
-    ) {
-      const compression = data[i + 8] | (data[i + 9] << 8);
-      const compressedSize =
-        data[i + 18] | (data[i + 19] << 8) | (data[i + 20] << 16) | (data[i + 21] << 24);
-      const nameLen = data[i + 26] | (data[i + 27] << 8);
-      const extraLen = data[i + 28] | (data[i + 29] << 8);
-      const name = new TextDecoder().decode(data.slice(i + 30, i + 30 + nameLen));
-      const dataStart = i + 30 + nameLen + extraLen;
-      const compData = data.slice(dataStart, dataStart + compressedSize);
-
-      if (compression === 0) {
-        // Stored — copy into a plain ArrayBuffer-backed Uint8Array
-        const stored = new Uint8Array(new ArrayBuffer(compData.length));
-        stored.set(compData);
-        files[name] = stored;
-      } else if (compression === 8) {
-        try {
-          files[name] = await decompressDeflateRaw(compData);
-        } catch {
-          // skip unreadable entries
-        }
-      }
-      i = dataStart + compressedSize;
-    } else {
-      i++;
-    }
-  }
-  return files;
-}
-
-/** Parse a .xlsx file (ArrayBuffer) and return rows as string[][] */
-export async function parseXlsxAsync(buffer: ArrayBuffer): Promise<string[][]> {
+async function readZip(buffer: ArrayBuffer): Promise<ZipFileEntry[]> {
+  const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
-  const files = await unzipAsync(bytes);
+  const files: ZipFileEntry[] = [];
 
-  // Shared strings
-  const sharedStrs: string[] = [];
-  const ssFile = files['xl/sharedStrings.xml'];
-  if (ssFile) {
-    const xml = new TextDecoder().decode(ssFile);
-    sharedStrs.push(...extractSharedStrings(xml));
-  }
-
-  // Find first worksheet
-  let sheetFile: Uint8Array | undefined;
-  for (const key of Object.keys(files)) {
-    if (key.startsWith('xl/worksheets/') && key.endsWith('.xml')) {
-      sheetFile = files[key];
+  // Find end of central directory
+  let eocdOffset = -1;
+  for (let i = bytes.length - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      eocdOffset = i;
       break;
     }
   }
+  if (eocdOffset === -1) throw new Error('Invalid ZIP: EOCD not found');
+
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+  const cdCount = view.getUint16(eocdOffset + 8, true);
+
+  let cdPos = cdOffset;
+  for (let i = 0; i < cdCount; i++) {
+    if (view.getUint32(cdPos, true) !== 0x02014b50) break;
+    const method = view.getUint16(cdPos + 10, true);
+    const compSize = view.getUint32(cdPos + 20, true);
+    const nameLen = view.getUint16(cdPos + 28, true);
+    const extraLen = view.getUint16(cdPos + 30, true);
+    const commentLen = view.getUint16(cdPos + 32, true);
+    const localOffset = view.getUint32(cdPos + 42, true);
+    const name = new TextDecoder().decode(bytes.slice(cdPos + 46, cdPos + 46 + nameLen));
+    cdPos += 46 + nameLen + extraLen + commentLen;
+
+    // Read local file header
+    const localNameLen = view.getUint16(localOffset + 26, true);
+    const localExtraLen = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    const compData = bytes.slice(dataStart, dataStart + compSize);
+
+    let data: Uint8Array;
+    if (method === 0) {
+      data = toPlainUint8Array(compData);
+    } else if (method === 8) {
+      data = await decompressDeflateRaw(compData);
+    } else {
+      data = toPlainUint8Array(compData);
+    }
+
+    files.push({ name, data });
+  }
+
+  return files;
+}
+
+function parseXmlDoc(xml: string): Document {
+  return new DOMParser().parseFromString(xml, 'application/xml');
+}
+
+export async function readXlsx(buffer: ArrayBuffer): Promise<string[][]> {
+  const files = await readZip(buffer);
+  const dec = new TextDecoder();
+
+  // Shared strings
+  const sstFile = files.find(f => f.name.includes('sharedStrings'));
+  const sharedStrings: string[] = [];
+  if (sstFile) {
+    const sstDoc = parseXmlDoc(dec.decode(sstFile.data));
+    sstDoc.querySelectorAll('si').forEach(si => {
+      const t = si.querySelector('t');
+      sharedStrings.push(t?.textContent ?? '');
+    });
+  }
+
+  // Find sheet1
+  const sheetFile = files.find(
+    f => f.name.includes('sheet1.xml') || /worksheets\/sheet\d+\.xml/.test(f.name)
+  );
   if (!sheetFile) return [];
 
-  const sheetXml = new TextDecoder().decode(sheetFile);
-  return extractRowsFromSheetXml(sheetXml, sharedStrs);
+  const sheetDoc = parseXmlDoc(dec.decode(sheetFile.data));
+  const rows: string[][] = [];
+
+  sheetDoc.querySelectorAll('row').forEach(rowEl => {
+    const cells: string[] = [];
+    rowEl.querySelectorAll('c').forEach(cell => {
+      const t = cell.getAttribute('t');
+      const v = cell.querySelector('v')?.textContent ?? '';
+      if (t === 's') {
+        cells.push(sharedStrings[parseInt(v)] ?? '');
+      } else {
+        cells.push(v);
+      }
+    });
+    rows.push(cells);
+  });
+
+  return rows;
 }

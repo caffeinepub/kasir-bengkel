@@ -1,332 +1,332 @@
-import { useState, useRef, useCallback } from 'react';
-import { toast } from 'sonner';
-import { Plus, Minus, Trash2, Search, Printer, ShoppingCart, User, Car, Package, Wrench } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import Receipt from '@/components/Receipt';
-import { useInventoryItems, useCreateTransaction, useShopSettings, useCustomers, useAddCustomer, useUpdateInventoryQuantity } from '@/hooks/useQueries';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import {
+  useInventoryItems,
+  useCreateTransaction,
+  useUpdateInventoryQuantity,
+  useShopSettings,
+} from '@/hooks/useQueries';
+import { ProductType, type InventoryItem } from '@/backend';
 import { formatRupiah } from '@/lib/utils';
-import { ProductType, type Transaction, type TransactionItem } from '../backend';
+import Receipt from '@/components/Receipt';
 
 interface CartItem {
-  id: bigint;
-  name: string;
-  price: bigint;
+  inventoryItem: InventoryItem;
   quantity: number;
-  productType: ProductType;
-  stock?: number;
 }
 
 export default function CashierPage() {
+  const { data: inventoryItems = [] } = useInventoryItems();
+  const { data: shopSettings } = useShopSettings();
+  const createTransaction = useCreateTransaction();
+  const updateQty = useUpdateInventoryQuantity();
+
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [vehicleInfo, setVehicleInfo] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [printTransaction, setPrintTransaction] = useState<Transaction | null>(null);
-  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [discount, setDiscount] = useState('0');
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<{
+    id: bigint;
+    items: CartItem[];
+    total: number;
+    customerName: string;
+    vehicleInfo: string;
+    timestamp: Date;
+  } | null>(null);
+
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const { data: inventoryItems = [] } = useInventoryItems();
-  const { data: settings } = useShopSettings();
-  const { data: customers = [] } = useCustomers();
-  const createTransaction = useCreateTransaction();
-  const addCustomer = useAddCustomer();
-  const updateQty = useUpdateInventoryQuantity();
-
-  const filtered = inventoryItems.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase()) &&
-    (item.productType === ProductType.service || (item.quantity !== undefined && item.quantity !== null))
+  const filteredItems = inventoryItems.filter(
+    (item) =>
+      item.name.toLowerCase().includes(search.toLowerCase()) &&
+      (item.productType === ProductType.service ||
+        (item.quantity !== undefined && item.quantity !== null && Number(item.quantity) > 0))
   );
 
-  const addToCart = (item: typeof inventoryItems[0]) => {
-    const stock = item.productType === ProductType.goods
-      ? (item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0)
-      : undefined;
-
-    setCart(prev => {
-      const existing = prev.find(c => c.id === item.id);
+  function addToCart(item: InventoryItem) {
+    setCart((prev) => {
+      const existing = prev.find((c) => c.inventoryItem.id === item.id);
       if (existing) {
-        if (item.productType === ProductType.goods && stock !== undefined && existing.quantity >= stock) {
-          toast.error('Stok tidak mencukupi');
+        const maxQty =
+          item.productType === ProductType.goods ? Number(item.quantity) : Infinity;
+        if (existing.quantity >= maxQty) {
+          toast.warning('Stok tidak mencukupi');
           return prev;
         }
-        return prev.map(c =>
-          c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
+        return prev.map((c) =>
+          c.inventoryItem.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
         );
       }
-      if (item.productType === ProductType.goods && (stock === undefined || stock <= 0)) {
-        toast.error('Stok habis');
-        return prev;
-      }
-      return [...prev, {
-        id: item.id,
-        name: item.name,
-        price: item.sellingPrice,
-        quantity: 1,
-        productType: item.productType,
-        stock,
-      }];
+      return [...prev, { inventoryItem: item, quantity: 1 }];
     });
-  };
+  }
 
-  const updateCartQty = (id: bigint, delta: number) => {
-    setCart(prev => prev
-      .map(c => {
-        if (c.id === id) {
-          const newQty = c.quantity + delta;
-          if (newQty <= 0) return null as unknown as CartItem;
-          if (c.productType === ProductType.goods && c.stock !== undefined && newQty > c.stock) {
-            toast.error('Stok tidak mencukupi');
-            return c;
-          }
+  function updateCartQty(itemId: bigint, delta: number) {
+    setCart((prev) =>
+      prev
+        .map((c) => {
+          if (c.inventoryItem.id !== itemId) return c;
+          const maxQty =
+            c.inventoryItem.productType === ProductType.goods
+              ? Number(c.inventoryItem.quantity)
+              : Infinity;
+          const newQty = Math.min(Math.max(0, c.quantity + delta), maxQty);
           return { ...c, quantity: newQty };
-        }
-        return c;
-      })
-      .filter(Boolean)
+        })
+        .filter((c) => c.quantity > 0)
     );
-  };
+  }
 
-  const removeFromCart = (id: bigint) => {
-    setCart(prev => prev.filter(c => c.id !== id));
-  };
+  function removeFromCart(itemId: bigint) {
+    setCart((prev) => prev.filter((c) => c.inventoryItem.id !== itemId));
+  }
 
-  const subtotal = cart.reduce((sum, c) => sum + Number(c.price) * c.quantity, 0);
-  const discountAmount = Math.round(subtotal * (discount / 100));
+  const subtotal = cart.reduce(
+    (sum, c) => sum + Number(c.inventoryItem.sellingPrice) * c.quantity,
+    0
+  );
+  const discountAmount = Math.min(Number(discount) || 0, subtotal);
   const total = subtotal - discountAmount;
 
-  const handleCheckout = useCallback(async () => {
-    if (cart.length === 0) { toast.error('Keranjang kosong'); return; }
-    if (!customerName.trim()) { toast.error('Nama pelanggan harus diisi'); return; }
-
-    const items: TransactionItem[] = cart.map(c => ({
-      id: c.id,
-      name: c.name,
-      price: c.price,
-      quantity: BigInt(c.quantity),
-      itemType: c.productType,
-    }));
+  async function handleCheckout() {
+    if (cart.length === 0) {
+      toast.error('Keranjang kosong');
+      return;
+    }
+    if (!customerName.trim()) {
+      toast.error('Nama pelanggan harus diisi');
+      return;
+    }
 
     try {
+      const transactionItems = cart.map((c) => ({
+        id: c.inventoryItem.id,
+        name: c.inventoryItem.name,
+        price: c.inventoryItem.sellingPrice,
+        quantity: BigInt(c.quantity),
+        itemType: c.inventoryItem.productType,
+      }));
+
       const txId = await createTransaction.mutateAsync({
-        items,
+        items: transactionItems,
         total: BigInt(total),
         customerName: customerName.trim(),
         vehicleInfo: vehicleInfo.trim(),
       });
 
-      // Update stock for goods items
+      // Deduct stock for goods
       for (const c of cart) {
-        if (c.productType === ProductType.goods) {
-          const invItem = inventoryItems.find(i => i.id === c.id);
-          if (invItem && invItem.quantity !== undefined && invItem.quantity !== null) {
-            const newQty = Number(invItem.quantity) - c.quantity;
-            await updateQty.mutateAsync({ itemId: c.id, newQuantity: BigInt(Math.max(0, newQty)) });
+        if (
+          c.inventoryItem.productType === ProductType.goods &&
+          c.inventoryItem.quantity !== undefined &&
+          c.inventoryItem.quantity !== null
+        ) {
+          const newQty = Number(c.inventoryItem.quantity) - c.quantity;
+          if (newQty >= 0) {
+            await updateQty.mutateAsync({
+              itemId: c.inventoryItem.id,
+              newQuantity: BigInt(newQty),
+            });
           }
         }
       }
 
-      // Save customer if new
-      if (customerName.trim() && !customers.includes(customerName.trim())) {
-        await addCustomer.mutateAsync(customerName.trim());
-      }
-
-      const tx: Transaction = {
+      setLastTransaction({
         id: txId,
-        timestamp: BigInt(Date.now()) * BigInt(1_000_000),
-        items,
-        total: BigInt(total),
+        items: [...cart],
+        total,
         customerName: customerName.trim(),
         vehicleInfo: vehicleInfo.trim(),
-      };
+        timestamp: new Date(),
+      });
 
-      setPrintTransaction(tx);
+      toast.success('Transaksi berhasil dibuat!');
+      setShowCheckoutDialog(false);
+      setShowReceiptDialog(true);
       setCart([]);
       setCustomerName('');
       setVehicleInfo('');
-      setDiscount(0);
-      toast.success('Transaksi berhasil!');
-
-      setTimeout(() => window.print(), 300);
-    } catch (err) {
-      toast.error('Gagal membuat transaksi');
+      setDiscount('0');
+    } catch (e: unknown) {
+      toast.error(
+        'Gagal membuat transaksi: ' + (e instanceof Error ? e.message : String(e))
+      );
     }
-  }, [cart, customerName, vehicleInfo, total, createTransaction, inventoryItems, updateQty, addCustomer, customers]);
+  }
 
-  const filteredCustomers = customers.filter(c =>
-    c.toLowerCase().includes(customerName.toLowerCase()) && c !== customerName
-  );
+  function handlePrint() {
+    window.print();
+  }
 
   return (
-    <div className="flex h-full">
-      {/* Print-only receipt */}
-      {printTransaction && (
-        <div className="print-only">
-          <Receipt ref={receiptRef} transaction={printTransaction} settings={settings ?? null} />
-        </div>
-      )}
-
-      {/* Left: Item Catalog */}
-      <div className="flex-1 flex flex-col p-6 border-r border-border">
+    <div className="flex h-full gap-0">
+      {/* Left: Product List */}
+      <div className="flex-1 p-6 overflow-auto border-r border-border">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-foreground mb-1">Kasir</h1>
-          <p className="text-muted-foreground text-sm">Pilih barang atau jasa untuk ditambahkan ke keranjang</p>
+          <p className="text-sm text-muted-foreground">
+            Pilih barang atau jasa untuk ditambahkan ke keranjang
+          </p>
         </div>
-
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative mb-4 max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Cari barang atau jasa..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-
-        <ScrollArea className="flex-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-2">
-            {filtered.map(item => {
-              const stock = item.productType === ProductType.goods
-                ? (item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0)
-                : undefined;
-              const isOutOfStock = item.productType === ProductType.goods && (stock === undefined || stock <= 0);
-
-              return (
-                <button
-                  key={String(item.id)}
-                  onClick={() => addToCart(item)}
-                  disabled={isOutOfStock}
-                  className="text-left p-3 rounded-xl border border-border bg-card hover:border-brand hover:bg-brand/5 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed group"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredItems.map((item) => (
+            <button
+              key={String(item.id)}
+              onClick={() => addToCart(item)}
+              className="text-left p-4 rounded-lg border bg-card hover:border-brand hover:shadow-sm transition-all group"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <span className="font-medium text-sm text-foreground group-hover:text-brand transition-colors line-clamp-2">
+                  {item.name}
+                </span>
+                <Badge
+                  variant={item.productType === ProductType.goods ? 'default' : 'secondary'}
+                  className="ml-2 shrink-0 text-xs"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-card-foreground truncate">{item.name}</p>
-                      <p className="text-brand font-bold text-sm mt-0.5">{formatRupiah(Number(item.sellingPrice))}</p>
-                    </div>
-                    <Badge
-                      variant={item.productType === ProductType.service ? 'default' : 'secondary'}
-                      className="text-xs shrink-0 flex items-center gap-1"
-                    >
-                      {item.productType === ProductType.service
-                        ? <><Wrench className="w-3 h-3" /> Jasa</>
-                        : <><Package className="w-3 h-3" /> Barang</>
-                      }
-                    </Badge>
-                  </div>
-                  {item.productType === ProductType.goods && (
-                    <p className="text-xs text-muted-foreground mt-1">Stok: {stock}</p>
-                  )}
-                  <div className="mt-2 flex items-center gap-1 text-xs text-brand opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Plus className="w-3 h-3" /> Tambah
-                  </div>
-                </button>
-              );
-            })}
-            {filtered.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-muted-foreground">
-                <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p>Tidak ada item ditemukan</p>
+                  {item.productType === ProductType.goods ? 'Barang' : 'Jasa'}
+                </Badge>
               </div>
-            )}
-          </div>
-        </ScrollArea>
+              <p className="text-brand font-semibold text-sm">
+                {formatRupiah(Number(item.sellingPrice))}
+              </p>
+              {item.productType === ProductType.goods && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Stok: {String(item.quantity)}
+                </p>
+              )}
+            </button>
+          ))}
+          {filteredItems.length === 0 && (
+            <div className="col-span-3 text-center py-10 text-muted-foreground text-sm">
+              {search ? 'Tidak ada barang yang cocok' : 'Tidak ada barang tersedia'}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right: Cart */}
-      <div className="w-96 flex flex-col bg-card border-l border-border">
-        <div className="p-5 border-b border-border">
-          <div className="flex items-center gap-2 mb-4">
-            <ShoppingCart className="w-5 h-5 text-brand" />
-            <h2 className="font-bold text-lg">Keranjang</h2>
+      <div className="w-80 flex flex-col bg-card border-l border-border">
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <ShoppingCart size={18} className="text-brand" />
+            <h2 className="font-semibold text-foreground">Keranjang</h2>
             {cart.length > 0 && (
-              <Badge className="bg-brand text-white ml-auto">{cart.length}</Badge>
+              <Badge variant="default" className="ml-auto">
+                {cart.length}
+              </Badge>
             )}
-          </div>
-
-          {/* Customer Info */}
-          <div className="space-y-2">
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Nama pelanggan *"
-                value={customerName}
-                onChange={e => { setCustomerName(e.target.value); setShowCustomerSuggestions(true); }}
-                onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 150)}
-                className="pl-9"
-              />
-              {showCustomerSuggestions && filteredCustomers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-10 bg-popover border border-border rounded-lg shadow-lg mt-1 max-h-32 overflow-auto">
-                  {filteredCustomers.map(c => (
-                    <button
-                      key={c}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
-                      onMouseDown={() => { setCustomerName(c); setShowCustomerSuggestions(false); }}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Info kendaraan (plat/tipe)"
-                value={vehicleInfo}
-                onChange={e => setVehicleInfo(e.target.value)}
-                className="pl-9"
-              />
-            </div>
           </div>
         </div>
 
-        {/* Cart Items */}
-        <ScrollArea className="flex-1 px-4 py-3">
+        <div className="flex-1 overflow-auto p-3 space-y-2">
           {cart.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-20" />
-              <p className="text-sm">Keranjang kosong</p>
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              Keranjang kosong
             </div>
           ) : (
-            <div className="space-y-2">
-              {cart.map(item => (
-                <div key={String(item.id)} className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-brand">{formatRupiah(Number(item.price))}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateCartQty(item.id, -1)}>
-                      <Minus className="w-3 h-3" />
-                    </Button>
-                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateCartQty(item.id, 1)}>
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.id)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
+            cart.map((c) => (
+              <div
+                key={String(c.inventoryItem.id)}
+                className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{c.inventoryItem.name}</p>
+                  <p className="text-xs text-brand">
+                    {formatRupiah(Number(c.inventoryItem.sellingPrice))}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => updateCartQty(c.inventoryItem.id, -1)}
+                  >
+                    <Minus size={12} />
+                  </Button>
+                  <span className="text-xs w-5 text-center font-medium">{c.quantity}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => updateCartQty(c.inventoryItem.id, 1)}
+                  >
+                    <Plus size={12} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive"
+                    onClick={() => removeFromCart(c.inventoryItem.id)}
+                  >
+                    <X size={12} />
+                  </Button>
+                </div>
+              </div>
+            ))
           )}
-        </ScrollArea>
+        </div>
 
-        {/* Summary */}
+        {/* Cart Summary */}
         <div className="p-4 border-t border-border space-y-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">Diskon (%)</label>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nama Pelanggan</Label>
+            <Input
+              placeholder="Nama pelanggan"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Info Kendaraan</Label>
+            <Input
+              placeholder="Plat nomor / tipe kendaraan"
+              value={vehicleInfo}
+              onChange={(e) => setVehicleInfo(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Diskon (Rp)</Label>
             <Input
               type="number"
-              min={0}
-              max={100}
+              placeholder="0"
               value={discount}
-              onChange={e => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
+              onChange={(e) => setDiscount(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -335,32 +335,141 @@ export default function CashierPage() {
               <span>Subtotal</span>
               <span>{formatRupiah(subtotal)}</span>
             </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Diskon ({discount}%)</span>
-                <span>-{formatRupiah(discountAmount)}</span>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Diskon</span>
+                <span>- {formatRupiah(discountAmount)}</span>
               </div>
             )}
-            <Separator />
-            <div className="flex justify-between font-bold text-base">
+            <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
               <span>Total</span>
               <span className="text-brand">{formatRupiah(total)}</span>
             </div>
           </div>
           <Button
-            className="w-full bg-brand hover:bg-brand-dark text-white font-bold"
-            size="lg"
-            onClick={handleCheckout}
-            disabled={createTransaction.isPending || cart.length === 0}
+            className="w-full"
+            disabled={cart.length === 0 || createTransaction.isPending}
+            onClick={() => setShowCheckoutDialog(true)}
           >
             {createTransaction.isPending ? (
-              <span className="flex items-center gap-2"><span className="animate-spin">⏳</span> Memproses...</span>
+              <Loader2 size={16} className="mr-2 animate-spin" />
             ) : (
-              <span className="flex items-center gap-2"><Printer className="w-4 h-4" /> Bayar & Cetak Struk</span>
+              <ShoppingCart size={16} className="mr-2" />
             )}
+            Bayar
           </Button>
         </div>
       </div>
+
+      {/* Checkout Confirmation Dialog */}
+      <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
+            <DialogDescription>
+              Periksa detail transaksi sebelum memproses pembayaran.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pelanggan</span>
+                <span className="font-medium">{customerName || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Kendaraan</span>
+                <span className="font-medium">{vehicleInfo || '—'}</span>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Barang</TableHead>
+                  <TableHead className="text-center">Qty</TableHead>
+                  <TableHead className="text-right">Subtotal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cart.map((c) => (
+                  <TableRow key={String(c.inventoryItem.id)}>
+                    <TableCell className="text-sm">{c.inventoryItem.name}</TableCell>
+                    <TableCell className="text-center text-sm">{c.quantity}</TableCell>
+                    <TableCell className="text-right text-sm">
+                      {formatRupiah(Number(c.inventoryItem.sellingPrice) * c.quantity)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="text-sm space-y-1 border-t pt-2">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span>{formatRupiah(subtotal)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Diskon</span>
+                  <span>- {formatRupiah(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span className="text-brand">{formatRupiah(total)}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCheckoutDialog(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleCheckout} disabled={createTransaction.isPending}>
+              {createTransaction.isPending && (
+                <Loader2 size={14} className="mr-1.5 animate-spin" />
+              )}
+              Proses Pembayaran
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Struk Pembayaran</DialogTitle>
+          </DialogHeader>
+          {lastTransaction && (
+            <Receipt
+              ref={receiptRef}
+              transaction={{
+                id: lastTransaction.id,
+                customerName: lastTransaction.customerName,
+                vehicleInfo: lastTransaction.vehicleInfo,
+                total: BigInt(lastTransaction.total),
+                timestamp: BigInt(lastTransaction.timestamp.getTime()) * 1_000_000n,
+                items: lastTransaction.items.map((c) => ({
+                  id: c.inventoryItem.id,
+                  name: c.inventoryItem.name,
+                  price: c.inventoryItem.sellingPrice,
+                  quantity: BigInt(c.quantity),
+                  itemType: c.inventoryItem.productType,
+                })),
+              }}
+              shopSettings={shopSettings ?? undefined}
+              discount={discountAmount}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReceiptDialog(false)}>
+              Tutup
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer size={14} className="mr-1.5" />
+              Cetak Struk
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
