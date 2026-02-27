@@ -1,97 +1,36 @@
 {
   "kind": "build_request",
-  "title": "Cashier: Max 10 Pinned Items with Selection Menu + Unified Search with Popup Suggestions",
-  "projectName": "Kasir Bengkel",
-  "priority": "normal",
+  "title": "Fix inventory page: restore ability to add items and upload items",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Replace the current split Jasa/Barang product grid on the Cashier page with a single unified product display panel that shows a maximum of 10 pinned items at a time.",
+      "text": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-latest"
+          "msg-7"
         ],
         "quotes": [
-          "yang ditampilkan hanya beberapa saja, maximal 10"
+          "ada eror pada inventori juga jadi gak bisa menambah barang maupun upload barang. mihon dikembalikan seperti sebelumnya"
         ]
       },
       "acceptanceCriteria": [
-        "The cashier product panel displays at most 10 items simultaneously",
-        "Items are no longer split into separate Jasa and Barang columns/sections",
-        "All 10 displayed items are clickable to add to the cart as before"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Add a 'Select Displayed Items' management menu/dialog on the Cashier page that allows the user to choose which specific inventory items (up to 10) are pinned and shown in the product panel.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-latest"
-        ],
-        "quotes": [
-          "dibuatkan menu pilihan barang yang mana yang akan ditampilkan"
-        ]
-      },
-      "acceptanceCriteria": [
-        "A button or gear icon opens a dialog/drawer listing all inventory items",
-        "User can select/deselect items to pin; selection is capped at 10",
-        "Selecting more than 10 items is prevented with a clear message",
-        "Saving the selection updates the product panel immediately",
-        "The selected pinned items persist across page reloads (stored in localStorage or backend settings)"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Replace the current separated search inputs (one for goods, one for services) on the Cashier page with a single unified search bar that searches across all inventory items (both goods and services).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-latest"
-        ],
-        "quotes": [
-          "untuk kolom pencarian 1 aja tidak usah dipisah antara barang dan jasa"
-        ]
-      },
-      "acceptanceCriteria": [
-        "There is exactly one search input field on the cashier page",
-        "The search queries across all inventory items regardless of type (barang or jasa)",
-        "The existing separate search inputs for goods and services are removed"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Implement a search popup/dropdown on the unified search bar that appears when the user types at least 1–2 characters, showing matching inventory items that are not in the current 10 pinned items. Clicking a result from the popup adds it directly to the cart.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-latest"
-        ],
-        "quotes": [
-          "untuk yang lainya akan pop up ketika diketik beberapa huruf di kolom pencarian"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Typing in the search bar triggers a dropdown popup showing matching items filtered by name",
-        "The popup appears after at least 1 character is typed",
-        "Search results include items from both goods and services categories",
-        "Items already displayed in the 10-item pinned panel can also appear in search results",
-        "Clicking a search result item adds it to the cart and clears the search input",
-        "The popup closes when the search input is cleared or focus is lost"
+        "The 'Add Item' dialog opens and successfully submits a new inventory item without errors.",
+        "The Excel import/upload functionality works correctly and adds items to the inventory.",
+        "Existing inventory items are still displayed correctly.",
+        "No console errors appear when opening the inventory page, the add dialog, or triggering the upload flow."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/ (useActor.ts, useInternetIdentity.ts) or frontend/src/components/ui/",
-    "Cart functionality and checkout flow must remain unchanged",
-    "Backend API must not be changed unless strictly necessary for persisting the pinned item selection"
+    "Do not change any backend data models or Motoko logic unless strictly required to fix the inventory errors.",
+    "Preserve the cashier page improvements from Version 10 (max 20 products grid and color-differentiated product cards by item type)."
   ],
   "nonGoals": [
-    "Changing the inventory management page layout",
-    "Modifying the receipt or transaction history pages",
-    "Adding real-time search (debounced local filtering is sufficient)",
-    "Persisting the pinned selection to the backend (localStorage is acceptable)"
+    "Redesigning or restyling the inventory page.",
+    "Adding new inventory features beyond restoring existing functionality.",
+    "Modifying any other pages (Cashier, Transactions, Reports, Settings)."
   ],
   "imageRequirements": {
     "required": [],

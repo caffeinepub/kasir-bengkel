@@ -1,14 +1,15 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T02:41:36.565Z",
-  "summary": "The diff modifies CashierPage.tsx to implement all four requirements: a unified product panel with max 10 pinned items (REQ-1), a 'Select Displayed Items' dialog with localStorage persistence (REQ-2), a single unified search bar replacing the split inputs (REQ-3), and a search popup/dropdown with cart-add functionality (REQ-4). The implementation appears comprehensive based on the file summary and truncated code.",
+  "generatedAt": "2026-02-27T03:40:54.512Z",
+  "summary": "The diff implements fixes to the Inventory page (InventoryPage.tsx) addressing the core requirements of REQ-1. The InventoryPage is updated to use correct function names (buildXlsx instead of writeXlsx, passing ArrayBuffer directly to readXlsx), the xlsx.ts library is fixed to correctly parse cell references and handle rich-text/inline strings, and useQueries.ts provides the necessary mutation hooks. The Cashier page improvements from Version 10 (20-product grid and color-differentiated cards) are preserved as shown in the file summaries. No backend data model changes are evident.",
   "missing_requirements": [],
   "hallucinated_features": [],
   "confidence": 0.82,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/pages/CashierPage.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/InventoryPage.tsx",
     "project_state.json"
   ]
 }

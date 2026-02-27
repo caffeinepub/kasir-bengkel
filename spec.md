@@ -1,12 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Redesign the Cashier page product panel to show a unified, configurable set of up to 10 pinned items, and replace the split search inputs with a single unified search bar that shows popup suggestions.
+**Goal:** Restore broken functionality on the Inventory page so users can add new items and upload items via Excel import.
 
 **Planned changes:**
-- Replace the split Jasa/Barang product grid with a single unified panel showing at most 10 pinned items at a time
-- Add a "Select Displayed Items" button/dialog that lets the user pick which inventory items (up to 10) are pinned; selection is persisted in localStorage
-- Remove the separate Jasa and Barang search inputs and replace them with one unified search bar that queries all inventory items
-- Add a dropdown popup on the unified search bar that appears after typing 1+ characters, showing matching items; clicking a result adds it to the cart
+- Fix the "Add Item" dialog so it opens and submits new inventory items without errors.
+- Fix the Excel import/upload flow so it correctly adds items to the inventory.
+- Ensure existing inventory items continue to display correctly.
+- Preserve all cashier page improvements from Version 10 (max 20 products grid, color-differentiated product cards by item type).
 
-**User-visible outcome:** On the Cashier page, users see a single compact product panel with up to 10 user-chosen pinned items, a gear/settings button to manage which items are pinned, and one search bar with live popup suggestions for quickly adding any inventory item to the cart.
+**User-visible outcome:** Users can once again add inventory items manually through the dialog and bulk-upload items via Excel on the Inventory page, with no console errors during these flows.

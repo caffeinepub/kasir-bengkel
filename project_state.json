@@ -1,63 +1,24 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "POS/cashier application with product display limited to max 10 items (with a selection menu to choose which items to display), and a unified search bar (not separated by goods/services) that shows a popup with additional items when typing.",
-  "architectural_notes": [
-    "Product grid on cashier page shows max 10 items; user can configure which items appear via a selection menu",
-    "Single unified search bar for both goods and services with autocomplete/popup for items not in the main grid"
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [
+    "Error on inventory page: cannot add items or upload items (reported in Version 10, user requested rollback)"
   ],
-  "known_issues": [],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-replace-the-current-split-jasa-barang-product-grid-on-the-cashier-page-with-a-single-unified-product-display-panel-that-shows-a-maximum-of-10-pinned-items-at-a-time",
-      "title": "Replace the current split Jasa/Barang product grid on the Cashier page with a single unified product display panel that shows a maximum of 10 pinned items at a time.",
+      "id": "feature-restore-full-functionality-of-the-inventory-page-inventorypage-tsx-so-that-users-can-add-new-inventory-items-via-the-add-dialog-and-upload-items-via-excel-import-both-of-which-are-currently-broken-in-version-10",
+      "title": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
-    },
-    {
-      "id": "feature-add-a-select-displayed-items-management-menu-dialog-on-the-cashier-page-that-allows-the-user-to-choose-which-specific-inventory-items-up-to-10-are-pinned-and-shown-in-the-product-panel",
-      "title": "Add a 'Select Displayed Items' management menu/dialog on the Cashier page that allows the user to choose which specific inventory items (up to 10) are pinned and shown in the product panel.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-replace-the-current-separated-search-inputs-one-for-goods-one-for-services-on-the-cashier-page-with-a-single-unified-search-bar-that-searches-across-all-inventory-items-both-goods-and-services",
-      "title": "Replace the current separated search inputs (one for goods, one for services) on the Cashier page with a single unified search bar that searches across all inventory items (both goods and services).",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-implement-a-search-popup-dropdown-on-the-unified-search-bar-that-appears-when-the-user-types-at-least-1-2-characters-showing-matching-inventory-items-that-are-not-in-the-current-10-pinned-items-clicking-a-result-from-the-popup-adds-it-directly-to-the-cart",
-      "title": "Implement a search popup/dropdown on the unified search bar that appears when the user types at least 1–2 characters, showing matching inventory items that are not in the current 10 pinned items. Clicking a result from the popup adds it directly to the cart.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
     }
   ],
-  "new_feature_requests": [
-    {
-      "id": "AR-1",
-      "summary": "Limit displayed products to max 10 items with a menu to select which items are shown",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Unified search bar (not separated by goods/services) with popup suggestions when typing",
-      "reqIds": [],
-      "status": "pending"
-    }
-  ],
-  "gameProjectType": "none",
-  "projectName": "Kasir Bengkel",
+  "new_feature_requests": [],
+  "projectName": "Fix inventory page: restore ability to add items and upload items",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

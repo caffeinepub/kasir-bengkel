@@ -1,79 +1,32 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Cashier: Max 10 Pinned Items with Selection Menu + Unified Search with Popup Suggestions",
+  "title": "Fix inventory page: restore add and upload functionality",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Replace the current split Jasa/Barang product grid with a single unified product display panel showing a maximum of 10 pinned items at a time",
+      "summary": "Restore full functionality of the Inventory page so users can add new items via the add dialog and upload items via Excel import",
       "acceptanceCriteria": [
-        "The cashier product panel displays at most 10 items simultaneously",
-        "Items are no longer split into separate Jasa and Barang columns/sections",
-        "All 10 displayed items are clickable to add to the cart as before"
+        "The 'Add Item' dialog opens and successfully submits a new inventory item without errors.",
+        "The Excel import/upload functionality works correctly and adds items to the inventory.",
+        "Existing inventory items are still displayed correctly.",
+        "No console errors appear when opening the inventory page, the add dialog, or triggering the upload flow."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/CashierPage.tsx",
+          "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Remove the split grid layout for services and goods. Replace the two separate product grids with a single unified product display panel that shows only the items selected as pinned (maximum 10). Filter the displayed items based on a pinned items list stored in component state (to be managed by REQ-2). Ensure all displayed items remain clickable to add to cart. Remove the separate service/goods column headers and consolidate the product grid into one section."
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Add a 'Select Displayed Items' management menu/dialog that allows users to choose which specific inventory items (up to 10) are pinned and shown in the product panel",
-      "acceptanceCriteria": [
-        "A button or gear icon opens a dialog/drawer listing all inventory items",
-        "User can select/deselect items to pin; selection is capped at 10",
-        "Selecting more than 10 items is prevented with a clear message",
-        "Saving the selection updates the product panel immediately",
-        "The selected pinned items persist across page reloads (stored in localStorage or backend settings)"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/CashierPage.tsx",
-          "operation": "modify",
-          "description": "Add a button (e.g., gear icon or 'Pilih Barang Tampilan') near the product panel that opens a Dialog component. Inside the dialog, list all inventory items from the backend with checkboxes for selection. Implement logic to track selected items (up to 10) and display a warning toast if the user tries to select more than 10 items. On save, store the selected item IDs in localStorage under a key like 'cashier-pinned-items'. Load this selection on component mount to initialize the pinned items state. Ensure the product panel updates immediately when the user saves the selection."
+          "description": "Debug and fix the add item dialog functionality to ensure it correctly validates and submits new inventory items using the addInventoryItem backend method. Verify that the form state management, validation logic, and mutation hooks are working correctly. Ensure the dialog opens, fields are editable, and submission triggers the backend call without errors."
         },
         {
-          "path": "frontend/src/hooks/usePinnedItems.ts",
-          "operation": "create",
-          "description": "Create a custom hook that manages the pinned items state for the cashier page. The hook should read from localStorage on mount (key: 'cashier-pinned-items'), return the list of pinned item IDs, and provide functions to update the pinned selection. Include logic to ensure the selection never exceeds 10 items. The hook should sync changes back to localStorage automatically."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Replace the current separated search inputs (one for goods, one for services) with a single unified search bar that searches across all inventory items",
-      "acceptanceCriteria": [
-        "There is exactly one search input field on the cashier page",
-        "The search queries across all inventory items regardless of type (barang or jasa)",
-        "The existing separate search inputs for goods and services are removed"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/CashierPage.tsx",
+          "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Remove the two separate search inputs for services and goods. Add a single unified search input field above the product panel. This search input will be used to filter inventory items across both goods and services categories. The search functionality will be extended in REQ-4 to show a popup with matching results."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Implement a search popup/dropdown that appears when the user types at least 1–2 characters, showing matching inventory items and allowing direct add-to-cart from the popup",
-      "acceptanceCriteria": [
-        "Typing in the search bar triggers a dropdown popup showing matching items filtered by name",
-        "The popup appears after at least 1 character is typed",
-        "Search results include items from both goods and services categories",
-        "Items already displayed in the 10-item pinned panel can also appear in search results",
-        "Clicking a search result item adds it to the cart and clears the search input",
-        "The popup closes when the search input is cleared or focus is lost"
-      ],
-      "file_operations": [
+          "description": "Debug and fix the Excel import/upload functionality to ensure it correctly parses uploaded .xlsx files using the xlsx.ts utility, validates the data structure, and adds items to inventory via the addInventoryItem backend method. Verify that file selection triggers parsing, error handling displays meaningful messages, and successful uploads refresh the inventory list."
+        },
         {
-          "path": "frontend/src/pages/CashierPage.tsx",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add a search popup (using a Popover or Command component) that appears below the unified search input when the user types at least 1 character. Filter all inventory items (from useAllInventoryItems) by name matching the search query. Display matching items in the popup as a clickable list. When a user clicks a search result, add the item to the cart using the existing addToCart logic and clear the search input. Close the popup when the search input is cleared or when the user clicks outside the popup. Include both goods and services in search results regardless of whether they are in the pinned 10."
+          "description": "Verify that the addInventoryItem mutation hook is correctly configured with proper error handling, query invalidation after success, and toast notifications. Ensure the mutation accepts all required parameters (id, name, sellingPrice, purchasePrice, quantity, kind) and matches the backend interface signature."
         }
       ]
     }

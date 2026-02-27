@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-replace-the-current-split-jasa-barang-product-grid-on-the-cashier-page-with-a-single-unified-product-display-panel-that-shows-a-maximum-of-10-pinned-items-at-a-time",
-      "featureTitle": "Replace the current split Jasa/Barang product grid on the Cashier page with a single unified product display panel that shows a maximum of 10 pinned items at a time.",
+      "featureId": "feature-restore-full-functionality-of-the-inventory-page-inventorypage-tsx-so-that-users-can-add-new-inventory-items-via-the-add-dialog-and-upload-items-via-excel-import-both-of-which-are-currently-broken-in-version-10",
+      "featureTitle": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
       "files": [
-        "frontend/src/pages/CashierPage.tsx"
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/InventoryPage.tsx"
       ],
       "components": [
         "blob-storage@4.0.0",
@@ -17,63 +18,6 @@
       ],
       "testIds": [
         "REQ-1"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-a-select-displayed-items-management-menu-dialog-on-the-cashier-page-that-allows-the-user-to-choose-which-specific-inventory-items-up-to-10-are-pinned-and-shown-in-the-product-panel",
-      "featureTitle": "Add a 'Select Displayed Items' management menu/dialog on the Cashier page that allows the user to choose which specific inventory items (up to 10) are pinned and shown in the product panel.",
-      "files": [
-        "frontend/src/pages/CashierPage.tsx"
-      ],
-      "components": [
-        "blob-storage@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-replace-the-current-separated-search-inputs-one-for-goods-one-for-services-on-the-cashier-page-with-a-single-unified-search-bar-that-searches-across-all-inventory-items-both-goods-and-services",
-      "featureTitle": "Replace the current separated search inputs (one for goods, one for services) on the Cashier page with a single unified search bar that searches across all inventory items (both goods and services).",
-      "files": [
-        "frontend/src/pages/CashierPage.tsx"
-      ],
-      "components": [
-        "blob-storage@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-implement-a-search-popup-dropdown-on-the-unified-search-bar-that-appears-when-the-user-types-at-least-1-2-characters-showing-matching-inventory-items-that-are-not-in-the-current-10-pinned-items-clicking-a-result-from-the-popup-adds-it-directly-to-the-cart",
-      "featureTitle": "Implement a search popup/dropdown on the unified search bar that appears when the user types at least 1–2 characters, showing matching inventory items that are not in the current 10 pinned items. Clicking a result from the popup adds it directly to the cart.",
-      "files": [
-        "frontend/src/pages/CashierPage.tsx"
-      ],
-      "components": [
-        "blob-storage@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
       ],
       "confidence": "high"
     }

@@ -1,69 +1,71 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  Search, Plus, Minus, ShoppingCart, Printer, Loader2, X, Settings2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect, useRef } from "react";
+import { useInventoryItems } from "@/hooks/useQueries";
+import { ItemKind, InventoryItem } from "@/backend";
+import { formatRupiah } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { useCreateTransaction } from "@/hooks/useQueries";
+import { useShopSettings } from "@/hooks/useQueries";
+import Receipt from "@/components/Receipt";
 import {
-  useInventoryItems,
-  useCreateTransaction,
-  useUpdateInventoryQuantity,
-  useShopSettings,
-} from '@/hooks/useQueries';
-import { ItemKind, type InventoryItem } from '@/backend';
-import { formatRupiah } from '@/lib/utils';
-import Receipt from '@/components/Receipt';
+  ShoppingCart,
+  Trash2,
+  Plus,
+  Minus,
+  Search,
+  Settings2,
+  Printer,
+  CheckCircle2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+
+const MAX_DISPLAY = 20;
+const PINNED_STORAGE_KEY = "cashier_pinned_items";
 
 interface CartItem {
-  inventoryItem: InventoryItem;
+  id: string;
+  name: string;
+  price: number;
   quantity: number;
-}
-
-const MAX_DISPLAY = 10;
-const PINNED_STORAGE_KEY = 'cashier-pinned-items';
-
-function loadPinnedIds(): string[] {
-  try {
-    const raw = localStorage.getItem(PINNED_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as string[];
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function savePinnedIds(ids: string[]) {
-  localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(ids));
+  kind: ItemKind;
 }
 
 export default function CashierPage() {
-  const { data: inventoryItems = [] } = useInventoryItems();
+  const { data: inventoryItems = [], isLoading } = useInventoryItems();
   const { data: shopSettings } = useShopSettings();
   const createTransaction = useCreateTransaction();
-  const updateQty = useUpdateInventoryQuantity();
 
-  // ── Cart state ──────────────────────────────────────────────────────────────
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [vehicleInfo, setVehicleInfo] = useState('');
-  const [discount, setDiscount] = useState('0');
-  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
-  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<{
-    id: bigint;
+  const [customerName, setCustomerName] = useState("");
+  const [vehicleInfo, setVehicleInfo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [pinnedItemIds, setPinnedItemIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(PINNED_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pinDialogSearch, setPinDialogSearch] = useState("");
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedTransaction, setCompletedTransaction] = useState<{
+    id: number;
     items: CartItem[];
     total: number;
     customerName: string;
@@ -71,163 +73,91 @@ export default function CashierPage() {
     timestamp: Date;
   } | null>(null);
 
-  // ── Pinned items (persisted in localStorage) ────────────────────────────────
-  const [pinnedIds, setPinnedIds] = useState<string[]>(() => loadPinnedIds());
-  const [showConfigDialog, setShowConfigDialog] = useState(false);
-  const [tempPinnedIds, setTempPinnedIds] = useState<Set<string>>(new Set());
-
-  // ── Unified search ──────────────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchPopup, setShowSearchPopup] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const receiptRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(pinnedItemIds));
+  }, [pinnedItemIds]);
 
-  // ── All available items (services always available, goods only if in stock) ──
-  const allAvailableItems = inventoryItems.filter(
-    (item) =>
-      item.kind === ItemKind.service ||
-      (item.kind === ItemKind.goods &&
-        item.quantity !== undefined &&
-        item.quantity !== null &&
-        Number(item.quantity) > 0)
-  );
-
-  // ── Pinned items to display (max 10) ────────────────────────────────────────
-  const displayedItems: InventoryItem[] = (() => {
-    if (pinnedIds.length > 0) {
-      // Show pinned items that still exist in inventory
-      return pinnedIds
-        .map((id) => allAvailableItems.find((item) => item.id === id))
-        .filter((item): item is InventoryItem => item !== undefined)
-        .slice(0, MAX_DISPLAY);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
     }
-    // Default: first MAX_DISPLAY available items
-    return allAvailableItems.slice(0, MAX_DISPLAY);
-  })();
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // ── Search results (popup) ──────────────────────────────────────────────────
-  const searchResults = searchQuery.trim().length > 0
-    ? allAvailableItems.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 20)
+  const pinnedItems = pinnedItemIds
+    .map((id) => inventoryItems.find((item) => item.id === id))
+    .filter((item): item is InventoryItem => !!item)
+    .slice(0, MAX_DISPLAY);
+
+  const searchResults = searchQuery.trim()
+    ? inventoryItems
+        .filter(
+          (item) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.id.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, MAX_DISPLAY)
     : [];
 
-  // Close popup on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowSearchPopup(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // ── Open config dialog ──────────────────────────────────────────────────────
-  function openConfig() {
-    const currentPinned = pinnedIds.length > 0
-      ? new Set(pinnedIds)
-      : new Set(allAvailableItems.slice(0, MAX_DISPLAY).map((i) => i.id));
-    setTempPinnedIds(currentPinned);
-    setShowConfigDialog(true);
-  }
-
-  function saveConfig() {
-    const ids = Array.from(tempPinnedIds);
-    setPinnedIds(ids);
-    savePinnedIds(ids);
-    setShowConfigDialog(false);
-    toast.success('Pengaturan tampilan produk disimpan');
-  }
-
-  function toggleTempPinned(id: string) {
-    setTempPinnedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        if (next.size >= MAX_DISPLAY) {
-          toast.warning(`Maksimal ${MAX_DISPLAY} item yang bisa dipilih`);
-          return prev;
-        }
-        next.add(id);
-      }
-      return next;
-    });
-  }
-
-  // ── Cart operations ─────────────────────────────────────────────────────────
-  const addToCart = useCallback((item: InventoryItem) => {
+  const addToCart = (item: InventoryItem) => {
     setCart((prev) => {
-      const existing = prev.find((c) => c.inventoryItem.id === item.id);
+      const existing = prev.find((c) => c.id === item.id);
       if (existing) {
-        const maxQty =
-          item.kind === ItemKind.goods ? Number(item.quantity) : Infinity;
-        if (existing.quantity >= maxQty) {
-          toast.warning('Stok tidak mencukupi');
-          return prev;
-        }
         return prev.map((c) =>
-          c.inventoryItem.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
+          c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
         );
       }
-      return [...prev, { inventoryItem: item, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          id: item.id,
+          name: item.name,
+          price: Number(item.sellingPrice),
+          quantity: 1,
+          kind: item.kind,
+        },
+      ];
     });
-  }, []);
+    setSearchQuery("");
+    setShowSearchDropdown(false);
+  };
 
-  function addToCartFromSearch(item: InventoryItem) {
-    addToCart(item);
-    setSearchQuery('');
-    setShowSearchPopup(false);
-  }
+  const removeFromCart = (id: string) => {
+    setCart((prev) => prev.filter((c) => c.id !== id));
+  };
 
-  function updateCartQty(itemId: string, delta: number) {
+  const updateQuantity = (id: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((c) => {
-          if (c.inventoryItem.id !== itemId) return c;
-          const maxQty =
-            c.inventoryItem.kind === ItemKind.goods
-              ? Number(c.inventoryItem.quantity)
-              : Infinity;
-          const newQty = Math.min(Math.max(0, c.quantity + delta), maxQty);
-          return { ...c, quantity: newQty };
-        })
+        .map((c) => (c.id === id ? { ...c, quantity: c.quantity + delta } : c))
         .filter((c) => c.quantity > 0)
     );
-  }
+  };
 
-  function removeFromCart(itemId: string) {
-    setCart((prev) => prev.filter((c) => c.inventoryItem.id !== itemId));
-  }
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const subtotal = cart.reduce(
-    (sum, c) => sum + Number(c.inventoryItem.sellingPrice) * c.quantity,
-    0
-  );
-  const discountAmount = Math.min(Number(discount) || 0, subtotal);
-  const total = subtotal - discountAmount;
-
-  // ── Checkout ────────────────────────────────────────────────────────────────
-  async function handleCheckout() {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
-      toast.error('Keranjang kosong');
+      toast.error("Keranjang masih kosong");
       return;
     }
     if (!customerName.trim()) {
-      toast.error('Nama pelanggan harus diisi');
+      toast.error("Nama pelanggan harus diisi");
       return;
     }
 
     try {
-      const transactionItems = cart.map((c) => ({
-        id: c.inventoryItem.id,
-        name: c.inventoryItem.name,
-        price: c.inventoryItem.sellingPrice,
-        quantity: BigInt(c.quantity),
-        itemType: c.inventoryItem.kind,
+      const transactionItems = cart.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: BigInt(item.price),
+        quantity: BigInt(item.quantity),
+        itemType: item.kind,
       }));
 
       const txId = await createTransaction.mutateAsync({
@@ -237,25 +167,8 @@ export default function CashierPage() {
         vehicleInfo: vehicleInfo.trim(),
       });
 
-      // Deduct stock for goods
-      for (const c of cart) {
-        if (
-          c.inventoryItem.kind === ItemKind.goods &&
-          c.inventoryItem.quantity !== undefined &&
-          c.inventoryItem.quantity !== null
-        ) {
-          const newQty = Number(c.inventoryItem.quantity) - c.quantity;
-          if (newQty >= 0) {
-            await updateQty.mutateAsync({
-              itemId: c.inventoryItem.id,
-              newQuantity: BigInt(newQty),
-            });
-          }
-        }
-      }
-
-      setLastTransaction({
-        id: txId,
+      setCompletedTransaction({
+        id: Number(txId),
         items: [...cart],
         total,
         customerName: customerName.trim(),
@@ -263,502 +176,421 @@ export default function CashierPage() {
         timestamp: new Date(),
       });
 
-      toast.success('Transaksi berhasil dibuat!');
-      setShowCheckoutDialog(false);
-      setShowReceiptDialog(true);
       setCart([]);
-      setCustomerName('');
-      setVehicleInfo('');
-      setDiscount('0');
-    } catch (e: unknown) {
-      toast.error(
-        'Gagal membuat transaksi: ' + (e instanceof Error ? e.message : String(e))
+      setCustomerName("");
+      setVehicleInfo("");
+      setShowReceipt(true);
+      toast.success("Transaksi berhasil disimpan");
+    } catch (err) {
+      toast.error("Gagal menyimpan transaksi");
+    }
+  };
+
+  const togglePinItem = (id: string) => {
+    setPinnedItemIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  const filteredForPinDialog = pinDialogSearch.trim()
+    ? inventoryItems.filter(
+        (item) =>
+          item.name.toLowerCase().includes(pinDialogSearch.toLowerCase()) ||
+          item.id.toLowerCase().includes(pinDialogSearch.toLowerCase())
+      )
+    : inventoryItems;
+
+  // Card background color based on item kind
+  const getItemCardBg = (kind: ItemKind) => {
+    if (kind === ItemKind.service) {
+      // Blue-tinted for services (jasa)
+      return "bg-blue-950/60 hover:bg-blue-900/70 border-blue-800/50";
+    }
+    // Green-tinted for goods (barang)
+    return "bg-emerald-950/60 hover:bg-emerald-900/70 border-emerald-800/50";
+  };
+
+  const getItemBadge = (kind: ItemKind) => {
+    if (kind === ItemKind.service) {
+      return (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-800/70 text-blue-200">
+          Jasa
+        </span>
       );
     }
-  }
-
-  function handlePrint() {
-    window.print();
-  }
-
-  // ── Product card ────────────────────────────────────────────────────────────
-  function ProductCard({ item }: { item: InventoryItem }) {
-    const inCart = cart.find((c) => c.inventoryItem.id === item.id);
     return (
-      <button
-        onClick={() => addToCart(item)}
-        className="relative text-left p-3 rounded-lg border bg-card hover:border-brand hover:shadow-sm transition-all group w-full"
-      >
-        {inCart && (
-          <span className="absolute top-2 right-2 bg-brand text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-            {inCart.quantity}
-          </span>
-        )}
-        <div className="flex items-start gap-1.5 mb-1">
-          <span className="text-xs mt-0.5 shrink-0">
-            {item.kind === ItemKind.service ? '🔧' : '📦'}
-          </span>
-          <p className="font-medium text-xs text-foreground group-hover:text-brand transition-colors line-clamp-2 pr-5">
-            {item.name}
-          </p>
+      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-800/70 text-emerald-200">
+        Barang
+      </span>
+    );
+  };
+
+  if (showReceipt && completedTransaction) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="flex items-center gap-2 mb-4 text-green-400">
+            <CheckCircle2 className="w-6 h-6" />
+            <span className="text-lg font-semibold">Transaksi Berhasil</span>
+          </div>
+          <Receipt
+            transaction={{
+              id: BigInt(completedTransaction.id),
+              timestamp: BigInt(completedTransaction.timestamp.getTime()) * 1_000_000n,
+              items: completedTransaction.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                price: BigInt(item.price),
+                quantity: BigInt(item.quantity),
+                itemType: item.kind,
+              })),
+              total: BigInt(completedTransaction.total),
+              customerName: completedTransaction.customerName,
+              vehicleInfo: completedTransaction.vehicleInfo,
+            }}
+            shopSettings={shopSettings ?? undefined}
+          />
+          <div className="flex gap-3 mt-4 no-print">
+            <Button
+              className="flex-1"
+              onClick={() => window.print()}
+              variant="outline"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Cetak Struk
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => setShowReceipt(false)}
+            >
+              Transaksi Baru
+            </Button>
+          </div>
         </div>
-        <p className="text-brand font-semibold text-xs">
-          {formatRupiah(Number(item.sellingPrice))}
-        </p>
-        {item.kind === ItemKind.goods && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Stok: {String(item.quantity)}
-          </p>
-        )}
-      </button>
+      </div>
     );
   }
 
   return (
-    <div className="flex h-full gap-0">
-      {/* ── Left: Product Display ─────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden border-r border-border">
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Left: Product Panel */}
+      <div className="flex-1 flex flex-col min-w-0 p-4 gap-4">
         {/* Header */}
-        <div className="px-5 pt-5 pb-3 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Kasir</h1>
-            <p className="text-xs text-muted-foreground">
-              Pilih produk untuk ditambahkan ke keranjang
-            </p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-foreground">Kasir</h1>
+          <div className="flex items-center gap-2">
+            {/* Legend */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mr-2">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded bg-blue-800/80 border border-blue-700" />
+                Jasa
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded bg-emerald-800/80 border border-emerald-700" />
+                Barang
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPinDialog(true)}
+              className="gap-1"
+            >
+              <Settings2 className="w-4 h-4" />
+              Pilih Tampilan
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={openConfig}>
-            <Settings2 size={15} className="mr-1.5" />
-            Pilih Tampilan
-          </Button>
         </div>
 
-        {/* Unified search bar */}
-        <div className="px-5 pb-3 shrink-0" ref={searchRef}>
+        {/* Search Bar */}
+        <div className="relative" ref={searchRef}>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              ref={searchInputRef}
-              placeholder="Cari barang atau jasa..."
+              placeholder="Cari produk atau jasa..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setShowSearchPopup(e.target.value.trim().length > 0);
+                setShowSearchDropdown(e.target.value.trim().length > 0);
               }}
               onFocus={() => {
-                if (searchQuery.trim().length > 0) setShowSearchPopup(true);
+                if (searchQuery.trim()) setShowSearchDropdown(true);
               }}
-              className="pl-9 h-9 text-sm"
+              className="pl-9"
             />
             {searchQuery && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setShowSearchPopup(false);
-                  searchInputRef.current?.focus();
-                }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setSearchQuery("");
+                  setShowSearchDropdown(false);
+                }}
               >
-                <X size={14} />
+                <X className="w-4 h-4" />
               </button>
             )}
+          </div>
 
-            {/* Search popup */}
-            {showSearchPopup && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-                {searchResults.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                    Tidak ada produk yang cocok
-                  </div>
-                ) : (
-                  <ScrollArea className="max-h-64">
-                    <div className="py-1">
-                      {searchResults.map((item) => {
-                        const inCart = cart.find((c) => c.inventoryItem.id === item.id);
-                        return (
-                          <button
-                            key={item.id}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              addToCartFromSearch(item);
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent text-left transition-colors"
-                          >
-                            <span className="text-base shrink-0">
-                              {item.kind === ItemKind.service ? '🔧' : '📦'}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate text-foreground">
-                                {item.name}
-                              </p>
-                              <p className="text-xs text-brand">
-                                {formatRupiah(Number(item.sellingPrice))}
-                                {item.kind === ItemKind.goods && (
-                                  <span className="text-muted-foreground ml-2">
-                                    Stok: {String(item.quantity)}
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                            {inCart && (
-                              <Badge variant="secondary" className="text-xs shrink-0">
-                                {inCart.quantity} di keranjang
-                              </Badge>
-                            )}
-                          </button>
-                        );
-                      })}
+          {/* Search Dropdown */}
+          {showSearchDropdown && searchResults.length > 0 && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+              <ScrollArea className="max-h-72">
+                {searchResults.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors border-b border-border/40 last:border-0 ${
+                      item.kind === ItemKind.service
+                        ? "hover:bg-blue-950/50"
+                        : "hover:bg-emerald-950/50"
+                    }`}
+                    onClick={() => addToCart(item)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getItemBadge(item.kind)}
+                      <span className="text-sm font-medium text-foreground">
+                        {item.name}
+                      </span>
                     </div>
-                  </ScrollArea>
-                )}
-              </div>
-            )}
-          </div>
+                    <span className="text-sm text-muted-foreground">
+                      {formatRupiah(Number(item.sellingPrice))}
+                    </span>
+                  </button>
+                ))}
+              </ScrollArea>
+            </div>
+          )}
+
+          {showSearchDropdown && searchQuery.trim() && searchResults.length === 0 && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl p-4 text-center text-sm text-muted-foreground">
+              Produk tidak ditemukan
+            </div>
+          )}
         </div>
 
-        {/* Pinned product grid */}
-        <div className="px-4 pb-2 shrink-0 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-            Produk Cepat
-          </span>
-          <Badge variant="secondary" className="text-xs px-1.5 py-0">
-            {displayedItems.length}/{MAX_DISPLAY}
-          </Badge>
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-            {displayedItems.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-muted-foreground text-sm">
-                <p className="mb-2">Belum ada produk yang dipilih untuk ditampilkan</p>
-                <Button variant="outline" size="sm" onClick={openConfig}>
-                  <Settings2 size={14} className="mr-1.5" />
+        {/* Pinned Items Grid */}
+        <div className="flex-1 overflow-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32 text-muted-foreground">
+              Memuat produk...
+            </div>
+          ) : pinnedItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2">
+              <Settings2 className="w-8 h-8 opacity-40" />
+              <p className="text-sm">
+                Belum ada item yang dipilih.{" "}
+                <button
+                  className="underline text-primary"
+                  onClick={() => setShowPinDialog(true)}
+                >
                   Pilih Tampilan
-                </Button>
-              </div>
-            ) : (
-              displayedItems.map((item) => (
-                <ProductCard key={item.id} item={item} />
-              ))
-            )}
-          </div>
-        </ScrollArea>
+                </button>
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {pinnedItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => addToCart(item)}
+                  className={`rounded-lg border p-3 text-left transition-all duration-150 flex flex-col gap-1 ${getItemCardBg(item.kind)}`}
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
+                      {item.name}
+                    </span>
+                    {getItemBadge(item.kind)}
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-auto">
+                    {formatRupiah(Number(item.sellingPrice))}
+                  </span>
+                  {item.kind === ItemKind.goods && item.quantity !== undefined && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Stok: {Number(item.quantity)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Right: Cart ───────────────────────────────────────────────────── */}
-      <div className="w-72 flex flex-col bg-card border-l border-border shrink-0">
+      {/* Right: Cart Panel */}
+      <div className="w-80 flex flex-col border-l border-border bg-card">
+        {/* Cart Header */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={18} className="text-brand" />
+          <div className="flex items-center gap-2 mb-3">
+            <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-semibold text-foreground">Keranjang</h2>
             {cart.length > 0 && (
-              <Badge variant="default" className="ml-auto">
+              <Badge variant="secondary" className="ml-auto">
                 {cart.length}
               </Badge>
             )}
           </div>
+          <Input
+            placeholder="Nama pelanggan *"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            className="mb-2"
+          />
+          <Input
+            placeholder="Info kendaraan (opsional)"
+            value={vehicleInfo}
+            onChange={(e) => setVehicleInfo(e.target.value)}
+          />
         </div>
 
-        <div className="flex-1 overflow-auto p-3 space-y-2">
+        {/* Cart Items */}
+        <ScrollArea className="flex-1">
           {cart.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground text-sm">
-              Keranjang kosong
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2 p-4">
+              <ShoppingCart className="w-8 h-8 opacity-30" />
+              <p className="text-sm text-center">Keranjang kosong</p>
             </div>
           ) : (
-            cart.map((c) => (
-              <div
-                key={String(c.inventoryItem.id)}
-                className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{c.inventoryItem.name}</p>
-                  <p className="text-xs text-brand">
-                    {formatRupiah(Number(c.inventoryItem.sellingPrice))}
-                  </p>
+            <div className="p-3 flex flex-col gap-2">
+              {cart.map((item) => (
+                <div
+                  key={item.id}
+                  className={`rounded-lg border p-2.5 flex flex-col gap-1.5 ${
+                    item.kind === ItemKind.service
+                      ? "bg-blue-950/40 border-blue-800/40"
+                      : "bg-emerald-950/40 border-emerald-800/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      {getItemBadge(item.kind)}
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {item.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-muted-foreground hover:text-destructive shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center text-sm font-medium">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatRupiah(item.price * item.quantity)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => updateCartQty(c.inventoryItem.id, -1)}
-                  >
-                    <Minus size={12} />
-                  </Button>
-                  <span className="text-xs w-5 text-center font-medium">{c.quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => updateCartQty(c.inventoryItem.id, 1)}
-                  >
-                    <Plus size={12} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive"
-                    onClick={() => removeFromCart(c.inventoryItem.id)}
-                  >
-                    <X size={12} />
-                  </Button>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
-        </div>
+        </ScrollArea>
 
-        {/* Cart Summary */}
-        <div className="p-4 border-t border-border space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Nama Pelanggan</Label>
-            <Input
-              placeholder="Nama pelanggan"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Info Kendaraan</Label>
-            <Input
-              placeholder="Plat nomor / tipe kendaraan"
-              value={vehicleInfo}
-              onChange={(e) => setVehicleInfo(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Diskon (Rp)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span>{formatRupiah(subtotal)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span>Diskon</span>
-                <span>- {formatRupiah(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
-              <span>Total</span>
-              <span className="text-brand">{formatRupiah(total)}</span>
-            </div>
+        {/* Cart Footer */}
+        <div className="p-4 border-t border-border">
+          <Separator className="mb-3" />
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-semibold text-foreground">Total</span>
+            <span className="text-lg font-bold text-primary">
+              {formatRupiah(total)}
+            </span>
           </div>
           <Button
             className="w-full"
-            disabled={cart.length === 0 || createTransaction.isPending}
-            onClick={() => setShowCheckoutDialog(true)}
+            size="lg"
+            onClick={handleCheckout}
+            disabled={createTransaction.isPending || cart.length === 0}
           >
             {createTransaction.isPending ? (
-              <Loader2 size={16} className="mr-2 animate-spin" />
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Memproses...
+              </span>
             ) : (
-              <ShoppingCart size={16} className="mr-2" />
+              "Bayar"
             )}
-            Bayar
           </Button>
         </div>
       </div>
 
-      {/* ── Config Dialog ─────────────────────────────────────────────────── */}
-      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+      {/* Pin Dialog */}
+      <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Pilih Produk Tampilan Kasir</DialogTitle>
-            <DialogDescription>
-              Pilih hingga {MAX_DISPLAY} produk (barang/jasa) yang akan ditampilkan sebagai tombol cepat di halaman kasir.
-            </DialogDescription>
+            <DialogTitle>Pilih Tampilan Produk</DialogTitle>
           </DialogHeader>
-
-          <div className="py-2">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">
-                Semua Produk ({allAvailableItems.length} tersedia)
-              </span>
-              <span className={`text-sm font-semibold ${tempPinnedIds.size >= MAX_DISPLAY ? 'text-destructive' : 'text-brand'}`}>
-                {tempPinnedIds.size}/{MAX_DISPLAY} dipilih
-              </span>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Pilih hingga {MAX_DISPLAY} item yang akan ditampilkan di panel kasir.
+          </p>
+          <Input
+            placeholder="Cari produk..."
+            value={pinDialogSearch}
+            onChange={(e) => setPinDialogSearch(e.target.value)}
+            className="mb-1"
+          />
+          <ScrollArea className="h-72 border border-border rounded-lg">
+            <div className="p-2 flex flex-col gap-1">
+              {filteredForPinDialog.map((item) => {
+                const isPinned = pinnedItemIds.includes(item.id);
+                const atMax =
+                  pinnedItemIds.length >= MAX_DISPLAY && !isPinned;
+                return (
+                  <label
+                    key={item.id}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                      isPinned
+                        ? item.kind === ItemKind.service
+                          ? "bg-blue-950/60 border border-blue-800/50"
+                          : "bg-emerald-950/60 border border-emerald-800/50"
+                        : "hover:bg-muted border border-transparent"
+                    } ${atMax ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Checkbox
+                      checked={isPinned}
+                      onCheckedChange={() => {
+                        if (!atMax || isPinned) togglePinItem(item.id);
+                      }}
+                      disabled={atMax}
+                    />
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {getItemBadge(item.kind)}
+                      <span className="text-sm font-medium truncate">
+                        {item.name}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {formatRupiah(Number(item.sellingPrice))}
+                    </span>
+                  </label>
+                );
+              })}
+              {filteredForPinDialog.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-6">
+                  Tidak ada produk ditemukan
+                </p>
+              )}
             </div>
-
-            {allAvailableItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Belum ada produk di inventori
-              </div>
-            ) : (
-              <ScrollArea className="h-80 rounded-md border">
-                <div className="p-2 space-y-1">
-                  {/* Services first */}
-                  {allAvailableItems.filter(i => i.kind === ItemKind.service).length > 0 && (
-                    <>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1">
-                        🔧 Jasa
-                      </p>
-                      {allAvailableItems
-                        .filter((i) => i.kind === ItemKind.service)
-                        .map((item) => (
-                          <label
-                            key={item.id}
-                            className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
-                          >
-                            <Checkbox
-                              checked={tempPinnedIds.has(item.id)}
-                              onCheckedChange={() => toggleTempPinned(item.id)}
-                              disabled={!tempPinnedIds.has(item.id) && tempPinnedIds.size >= MAX_DISPLAY}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{item.name}</p>
-                              <p className="text-xs text-brand">
-                                {formatRupiah(Number(item.sellingPrice))}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                    </>
-                  )}
-
-                  {/* Goods */}
-                  {allAvailableItems.filter(i => i.kind === ItemKind.goods).length > 0 && (
-                    <>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1 mt-2">
-                        📦 Barang
-                      </p>
-                      {allAvailableItems
-                        .filter((i) => i.kind === ItemKind.goods)
-                        .map((item) => (
-                          <label
-                            key={item.id}
-                            className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
-                          >
-                            <Checkbox
-                              checked={tempPinnedIds.has(item.id)}
-                              onCheckedChange={() => toggleTempPinned(item.id)}
-                              disabled={!tempPinnedIds.has(item.id) && tempPinnedIds.size >= MAX_DISPLAY}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{item.name}</p>
-                              <p className="text-xs text-brand">
-                                {formatRupiah(Number(item.sellingPrice))}
-                                <span className="text-muted-foreground ml-2">
-                                  Stok: {String(item.quantity)}
-                                </span>
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                    </>
-                  )}
-                </div>
-              </ScrollArea>
-            )}
-
-            {tempPinnedIds.size >= MAX_DISPLAY && (
-              <p className="text-xs text-destructive mt-2">
-                ⚠ Batas maksimal {MAX_DISPLAY} item tercapai. Hapus centang item lain untuk memilih yang baru.
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfigDialog(false)}>
-              Batal
-            </Button>
-            <Button onClick={saveConfig}>
-              Simpan Tampilan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Checkout Dialog ───────────────────────────────────────────────── */}
-      <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
-            <DialogDescription>
-              Periksa kembali pesanan sebelum memproses pembayaran.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="rounded-lg border border-border divide-y divide-border">
-              {cart.map((c) => (
-                <div key={c.inventoryItem.id} className="flex justify-between items-center px-3 py-2 text-sm">
-                  <span className="truncate flex-1 mr-2">{c.inventoryItem.name}</span>
-                  <span className="text-muted-foreground shrink-0">
-                    {c.quantity}× {formatRupiah(Number(c.inventoryItem.sellingPrice))}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Diskon</span>
-                <span>- {formatRupiah(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-base border-t border-border pt-2">
-              <span>Total</span>
-              <span className="text-brand">{formatRupiah(total)}</span>
-            </div>
+          </ScrollArea>
+          <div className="text-xs text-muted-foreground">
+            {pinnedItemIds.length}/{MAX_DISPLAY} item dipilih
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCheckoutDialog(false)}>
-              Batal
-            </Button>
-            <Button
-              onClick={handleCheckout}
-              disabled={createTransaction.isPending}
-            >
-              {createTransaction.isPending ? (
-                <Loader2 size={16} className="mr-2 animate-spin" />
-              ) : null}
-              Proses Pembayaran
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Receipt Dialog ────────────────────────────────────────────────── */}
-      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Struk Pembayaran</DialogTitle>
-          </DialogHeader>
-          <div ref={receiptRef}>
-            {lastTransaction && (
-              <Receipt
-                transaction={{
-                  id: lastTransaction.id,
-                  timestamp: BigInt(lastTransaction.timestamp.getTime()) * 1_000_000n,
-                  items: lastTransaction.items.map((c) => ({
-                    id: c.inventoryItem.id,
-                    name: c.inventoryItem.name,
-                    price: c.inventoryItem.sellingPrice,
-                    quantity: BigInt(c.quantity),
-                    itemType: c.inventoryItem.kind,
-                  })),
-                  total: BigInt(lastTransaction.total),
-                  customerName: lastTransaction.customerName,
-                  vehicleInfo: lastTransaction.vehicleInfo,
-                }}
-                shopSettings={shopSettings ?? undefined}
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReceiptDialog(false)}>
-              Tutup
-            </Button>
-            <Button onClick={handlePrint}>
-              <Printer size={16} className="mr-2" />
-              Cetak Struk
-            </Button>
+            <Button onClick={() => setShowPinDialog(false)}>Selesai</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
