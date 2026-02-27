@@ -2,10 +2,9 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-restore-full-functionality-of-the-inventory-page-inventorypage-tsx-so-that-users-can-add-new-inventory-items-via-the-add-dialog-and-upload-items-via-excel-import-both-of-which-are-currently-broken-in-version-10",
-      "featureTitle": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
+      "featureId": "feature-when-importing-inventory-items-from-an-axle-exported-excel-file-use-the-id-column-as-the-unique-key-if-an-item-with-the-same-id-already-exists-in-inventory-update-all-other-columns-name-price-stock-category-etc-with-the-values-from-the-uploaded-file-if-no-matching-id-exists-insert-it-as-a-new-item",
+      "featureTitle": "When importing inventory items from an Axle-exported Excel file, use the ID column as the unique key: if an item with the same ID already exists in inventory, update all other columns (name, price, stock, category, etc.) with the values from the uploaded file; if no matching ID exists, insert it as a new item.",
       "files": [
-        "frontend/src/hooks/useQueries.ts",
         "frontend/src/pages/InventoryPage.tsx"
       ],
       "components": [

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
 import { ItemKind } from "@/backend";
-import type { InventoryItem, TransactionItem } from "@/backend";
+import type { InventoryItem, Transaction, ShopSettings, DailyReport, MonthlyReport } from "@/backend";
+import { ExternalBlob } from "@/backend";
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
@@ -17,22 +18,19 @@ export function useInventoryItems() {
   });
 }
 
-interface AddInventoryItemParams {
-  id: string;
-  name: string;
-  sellingPrice: bigint;
-  purchasePrice: bigint;
-  quantity: bigint | null;
-  kind: ItemKind;
-}
-
 export function useAddInventoryItem() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (params: AddInventoryItemParams) => {
-      if (!actor) throw new Error("Actor not initialized");
+    mutationFn: async (params: {
+      id: string;
+      name: string;
+      sellingPrice: bigint;
+      purchasePrice: bigint;
+      quantity: bigint | null;
+      kind: ItemKind;
+    }) => {
+      if (!actor) throw new Error("Actor not ready");
       await actor.addInventoryItem(
         params.id,
         params.name,
@@ -41,6 +39,20 @@ export function useAddInventoryItem() {
         params.quantity,
         params.kind
       );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
+export function useUpdateAllItems() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: InventoryItem[]) => {
+      if (!actor) throw new Error("Actor not ready");
+      await actor.updateAllItems(items);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -51,10 +63,9 @@ export function useAddInventoryItem() {
 export function useDeleteInventoryItem() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       await actor.deleteInventoryItem(id);
     },
     onSuccess: () => {
@@ -63,46 +74,13 @@ export function useDeleteInventoryItem() {
   });
 }
 
-interface ReplaceInventoryItemParams {
-  id: string;
-  name: string;
-  sellingPrice: bigint;
-  purchasePrice: bigint;
-  quantity: bigint | null;
-  kind: ItemKind;
-}
-
-export function useReplaceInventoryItem() {
+export function useUpdateInventoryItemQuantity() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (params: ReplaceInventoryItemParams) => {
-      if (!actor) throw new Error("Actor not initialized");
-      await actor.deleteInventoryItem(params.id);
-      await actor.addInventoryItem(
-        params.id,
-        params.name,
-        params.sellingPrice,
-        params.purchasePrice,
-        params.quantity,
-        params.kind
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-    },
-  });
-}
-
-export function useUpdateInventoryQuantity() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ itemId, newQuantity }: { itemId: string; newQuantity: bigint }) => {
-      if (!actor) throw new Error("Actor not initialized");
-      await actor.updateInventoryItemQuantity(itemId, newQuantity);
+    mutationFn: async (params: { itemId: string; newQuantity: bigint }) => {
+      if (!actor) throw new Error("Actor not ready");
+      await actor.updateInventoryItemQuantity(params.itemId, params.newQuantity);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -114,7 +92,7 @@ export function useUpdateInventoryQuantity() {
 
 export function useTransactions() {
   const { actor, isFetching } = useActor();
-  return useQuery({
+  return useQuery<Transaction[]>({
     queryKey: ["transactions"],
     queryFn: async () => {
       if (!actor) return [];
@@ -127,15 +105,20 @@ export function useTransactions() {
 export function useCreateTransaction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (params: {
-      items: TransactionItem[];
+      items: Array<{
+        id: string;
+        name: string;
+        price: bigint;
+        quantity: bigint;
+        itemType: ItemKind;
+      }>;
       total: bigint;
       customerName: string;
       vehicleInfo: string;
     }) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       return actor.createTransaction(
         params.items,
         params.total,
@@ -153,10 +136,9 @@ export function useCreateTransaction() {
 export function useDeleteTransaction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       await actor.deleteTransaction(id);
     },
     onSuccess: () => {
@@ -182,10 +164,9 @@ export function useCustomers() {
 export function useAddCustomer() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (customer: string) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       await actor.addCustomer(customer);
     },
     onSuccess: () => {
@@ -197,10 +178,9 @@ export function useAddCustomer() {
 export function useDeleteCustomer() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (customer: string) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       await actor.deleteCustomer(customer);
     },
     onSuccess: () => {
@@ -213,7 +193,7 @@ export function useDeleteCustomer() {
 
 export function useShopSettings() {
   const { actor, isFetching } = useActor();
-  return useQuery({
+  return useQuery<ShopSettings | null>({
     queryKey: ["shopSettings"],
     queryFn: async () => {
       if (!actor) return null;
@@ -230,7 +210,6 @@ export function useShopSettings() {
 export function useUpdateShopSettings() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (params: {
       shopName: string;
@@ -238,7 +217,7 @@ export function useUpdateShopSettings() {
       phoneNumber: string;
       thankYouMessage: string;
     }) => {
-      if (!actor) throw new Error("Actor not initialized");
+      if (!actor) throw new Error("Actor not ready");
       await actor.updatePersistentSettings(
         params.shopName,
         params.address,
@@ -255,10 +234,9 @@ export function useUpdateShopSettings() {
 export function useUploadLogo() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (file: import("@/backend").ExternalBlob) => {
-      if (!actor) throw new Error("Actor not initialized");
+    mutationFn: async (file: ExternalBlob) => {
+      if (!actor) throw new Error("Actor not ready");
       await actor.uploadLogo(file);
     },
     onSuccess: () => {
@@ -271,7 +249,7 @@ export function useUploadLogo() {
 
 export function useDailyReport(day: bigint | null) {
   const { actor, isFetching } = useActor();
-  return useQuery({
+  return useQuery<DailyReport | null>({
     queryKey: ["dailyReport", day?.toString()],
     queryFn: async () => {
       if (!actor || day === null) return null;
@@ -283,7 +261,7 @@ export function useDailyReport(day: bigint | null) {
 
 export function useMonthlyReport(month: bigint | null) {
   const { actor, isFetching } = useActor();
-  return useQuery({
+  return useQuery<MonthlyReport | null>({
     queryKey: ["monthlyReport", month?.toString()],
     queryFn: async () => {
       if (!actor || month === null) return null;
@@ -295,8 +273,8 @@ export function useMonthlyReport(month: bigint | null) {
 
 export function useTopSellingItems(count: bigint) {
   const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["topSelling", count.toString()],
+  return useQuery<Array<[string, bigint]>>({
+    queryKey: ["topSellingItems", count.toString()],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getTopSellingItems(count);
@@ -305,21 +283,9 @@ export function useTopSellingItems(count: bigint) {
   });
 }
 
-export function useTransactionsByMonth(monthTimestamp: bigint | null) {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["transactionsByMonth", monthTimestamp?.toString()],
-    queryFn: async () => {
-      if (!actor || monthTimestamp === null) return [];
-      return actor.getTransactionsByMonth(monthTimestamp);
-    },
-    enabled: !!actor && !isFetching && monthTimestamp !== null,
-  });
-}
-
 export function useProfitLoss(startTime: bigint | null, endTime: bigint | null) {
   const { actor, isFetching } = useActor();
-  return useQuery({
+  return useQuery<bigint | null>({
     queryKey: ["profitLoss", startTime?.toString(), endTime?.toString()],
     queryFn: async () => {
       if (!actor || startTime === null || endTime === null) return null;

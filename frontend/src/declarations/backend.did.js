@@ -135,6 +135,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(Transaction)],
       ['query'],
     ),
+  'updateAllItems' : IDL.Func([IDL.Vec(InventoryItem)], [], []),
   'updateInventoryItemQuantity' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'updatePersistentSettings' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
@@ -271,6 +272,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Transaction)],
         ['query'],
       ),
+    'updateAllItems' : IDL.Func([IDL.Vec(InventoryItem)], [], []),
     'updateInventoryItemQuantity' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'updatePersistentSettings' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],

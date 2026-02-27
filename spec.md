@@ -1,12 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Restore broken functionality on the Inventory page so users can add new items and upload items via Excel import.
+**Goal:** Change the Axle Excel import in the Inventory page to use the ID column as a unique key, upserting items instead of always inserting new ones.
 
 **Planned changes:**
-- Fix the "Add Item" dialog so it opens and submits new inventory items without errors.
-- Fix the Excel import/upload flow so it correctly adds items to the inventory.
-- Ensure existing inventory items continue to display correctly.
-- Preserve all cashier page improvements from Version 10 (max 20 products grid, color-differentiated product cards by item type).
+- When processing an Axle-exported Excel upload, check each item's ID against existing inventory records.
+- If a matching ID is found, update that item's fields (name, price, stock, category, etc.) with values from the file.
+- If no matching ID is found, insert the item as a new inventory entry.
+- Items in inventory whose IDs are not present in the uploaded file are left unchanged.
 
-**User-visible outcome:** Users can once again add inventory items manually through the dialog and bulk-upload items via Excel on the Inventory page, with no console errors during these flows.
+**User-visible outcome:** After uploading an Axle Excel file, existing inventory items with matching IDs are updated in place rather than duplicated, while new IDs are added as new items and unaffected items remain unchanged.

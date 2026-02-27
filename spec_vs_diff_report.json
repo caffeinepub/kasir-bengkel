@@ -1,12 +1,14 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T03:40:54.512Z",
-  "summary": "The diff implements fixes to the Inventory page (InventoryPage.tsx) addressing the core requirements of REQ-1. The InventoryPage is updated to use correct function names (buildXlsx instead of writeXlsx, passing ArrayBuffer directly to readXlsx), the xlsx.ts library is fixed to correctly parse cell references and handle rich-text/inline strings, and useQueries.ts provides the necessary mutation hooks. The Cashier page improvements from Version 10 (20-product grid and color-differentiated cards) are preserved as shown in the file summaries. No backend data model changes are evident.",
+  "generatedAt": "2026-02-27T05:48:30.980Z",
+  "summary": "The diff implements upsert-by-ID logic for Axle Excel uploads in the inventory page. The frontend InventoryPage.tsx handleImport is updated to use ID as the unique key, updating existing items and inserting new ones, while leaving unaffected items unchanged. A useUpdateAllItems hook and corresponding backend updateAllItems call are added. The implementation appears to cover all acceptance criteria of REQ-1.",
   "missing_requirements": [],
   "hallucinated_features": [],
-  "confidence": 0.82,
+  "confidence": 0.85,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
     "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/InventoryPage.tsx",

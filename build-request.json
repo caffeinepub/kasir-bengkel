@@ -1,36 +1,39 @@
 {
   "kind": "build_request",
-  "title": "Fix inventory page: restore ability to add items and upload items",
-  "priority": "high",
+  "title": "Upsert by ID on Axle Excel Upload in Inventory",
+  "projectName": "Kasir Bengkel",
+  "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
-      "target": "frontend",
+      "text": "When importing inventory items from an Axle-exported Excel file, use the ID column as the unique key: if an item with the same ID already exists in inventory, update all other columns (name, price, stock, category, etc.) with the values from the uploaded file; if no matching ID exists, insert it as a new item.",
+      "target": "both",
       "source": {
         "messageIds": [
-          "msg-7"
+          "msg-1"
         ],
         "quotes": [
-          "ada eror pada inventori juga jadi gak bisa menambah barang maupun upload barang. mihon dikembalikan seperti sebelumnya"
+          "saat upload dari axle untuk kolom ID sebagai kunci sementara kolom yang lain mengikuti perubahan yang dilakukan di axle"
         ]
       },
       "acceptanceCriteria": [
-        "The 'Add Item' dialog opens and successfully submits a new inventory item without errors.",
-        "The Excel import/upload functionality works correctly and adds items to the inventory.",
-        "Existing inventory items are still displayed correctly.",
-        "No console errors appear when opening the inventory page, the add dialog, or triggering the upload flow."
+        "Uploading an Excel file from Axle where an item's ID already exists in inventory updates that item's other fields (name, price, stock, etc.) without creating a duplicate.",
+        "Uploading an Excel file from Axle where an item's ID does not yet exist in inventory inserts it as a new inventory item.",
+        "Items in the current inventory whose IDs are NOT present in the uploaded Axle file remain unchanged.",
+        "The ID column is treated as case-insensitive or exact-match key (consistent with existing ID format).",
+        "After a successful upsert upload, the inventory table reflects all updated and newly added items immediately."
       ]
     }
   ],
   "constraints": [
-    "Do not change any backend data models or Motoko logic unless strictly required to fix the inventory errors.",
-    "Preserve the cashier page improvements from Version 10 (max 20 products grid and color-differentiated product cards by item type)."
+    "Do not change the existing Excel export functionality.",
+    "Do not alter how manual Add Item dialog works — only the Excel import (Axle upload) path is affected.",
+    "Preserve existing stable storage schema; add migration only if backend data structure must change."
   ],
   "nonGoals": [
-    "Redesigning or restyling the inventory page.",
-    "Adding new inventory features beyond restoring existing functionality.",
-    "Modifying any other pages (Cashier, Transactions, Reports, Settings)."
+    "Deleting inventory items that are absent from the uploaded Axle file.",
+    "Changing the Excel file format or column structure expected from Axle.",
+    "Any changes to the Cashier, Transactions, Reports, or Settings pages."
   ],
   "imageRequirements": {
     "required": [],

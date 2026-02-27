@@ -7,11 +7,11 @@ import Set "mo:core/Set";
 import Order "mo:core/Order";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
-
 import Runtime "mo:core/Runtime";
+import Migration "migration";
 
 // Apply data migration function on upgrades:
-
+(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -24,14 +24,6 @@ actor {
     #goods;
   };
 
-  public type Price = {
-    id : Nat;
-    name : Text;
-    amount : Nat; // price in smallest currency (e.g. cents)
-    description : Text;
-    kind : ItemKind;
-  };
-
   public type InventoryItem = {
     id : Text;
     name : Text;
@@ -40,11 +32,6 @@ actor {
     quantity : ?Nat;
     kind : ItemKind;
   };
-
-  // "barang" -> goods
-  // "jasa" -> services
-  // Backend idea: Use type system to ensure that services don't have quantity. Queries can be "all services", "all goods", etc.
-  // When computing revenue, only count goods that have purchase price.
 
   public type TransactionItem = {
     id : Text;
@@ -89,12 +76,6 @@ actor {
     };
   };
 
-  module Price {
-    public func compare(p1 : Price, p2 : Price) : Order.Order {
-      Nat.compare(p1.id, p2.id);
-    };
-  };
-
   /////////////////////////////////////////////////////////////////////////////
   //////////////////////         State              ///////////////////////////
   /////////////////////////////////////////////////////////////////////////////
@@ -105,7 +86,7 @@ actor {
   // Maps for persistent storage
   let persistentCustomers = Set.empty<Text>();
   let persistentTransactions = Map.empty<Nat, Transaction>();
-  let persistentInventory = Map.empty<Text, InventoryItem>();
+  var persistentInventory = Map.empty<Text, InventoryItem>();
 
   /////////////////////////////////////////////////////////////////////////////
   //////////////////////        Shop Settings      ////////////////////////////
@@ -208,6 +189,12 @@ actor {
           Runtime.trap("Cannot update quantity for services");
         };
       };
+    };
+  };
+
+  public shared ({ caller }) func updateAllItems(items : [InventoryItem]) : async () {
+    for (item in items.values()) {
+      persistentInventory.add(item.id, item);
     };
   };
 
@@ -399,4 +386,5 @@ actor {
     let dt2 = timestamp2 / 1_000_000_000;
     dt1 >= dt2 and dt1 < (dt2 + 30 * 24 * 60 * 60);
   };
+
 };

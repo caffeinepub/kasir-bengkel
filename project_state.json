@@ -1,24 +1,32 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "New project",
-  "architectural_notes": [],
-  "known_issues": [
-    "Error on inventory page: cannot add items or upload items (reported in Version 10, user requested rollback)"
+  "summary": "Inventory management project with Axle integration. Features include adding and uploading items to inventory. Latest adjustment: when uploading from Axle, the ID column acts as the key while other columns follow changes made in Axle.",
+  "architectural_notes": [
+    "Axle upload uses ID column as primary key; other columns follow Axle data changes"
   ],
-  "isFixRequest": true,
+  "known_issues": [],
+  "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-restore-full-functionality-of-the-inventory-page-inventorypage-tsx-so-that-users-can-add-new-inventory-items-via-the-add-dialog-and-upload-items-via-excel-import-both-of-which-are-currently-broken-in-version-10",
-      "title": "Restore full functionality of the Inventory page (InventoryPage.tsx) so that users can add new inventory items via the add dialog and upload items via Excel import — both of which are currently broken in Version 10.",
+      "id": "feature-when-importing-inventory-items-from-an-axle-exported-excel-file-use-the-id-column-as-the-unique-key-if-an-item-with-the-same-id-already-exists-in-inventory-update-all-other-columns-name-price-stock-category-etc-with-the-values-from-the-uploaded-file-if-no-matching-id-exists-insert-it-as-a-new-item",
+      "title": "When importing inventory items from an Axle-exported Excel file, use the ID column as the unique key: if an item with the same ID already exists in inventory, update all other columns (name, price, stock, category, etc.) with the values from the uploaded file; if no matching ID exists, insert it as a new item.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     }
   ],
-  "new_feature_requests": [],
-  "projectName": "Fix inventory page: restore ability to add items and upload items",
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "When uploading from Axle, use ID column as the key so other columns are updated/overwritten by changes from Axle",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Kasir Bengkel",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

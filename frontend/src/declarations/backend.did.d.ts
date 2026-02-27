@@ -105,6 +105,7 @@ export interface _SERVICE {
   'getTransaction' : ActorMethod<[bigint], [] | [Transaction]>,
   'getTransactionsByCustomer' : ActorMethod<[string], Array<Transaction>>,
   'getTransactionsByMonth' : ActorMethod<[Time], Array<Transaction>>,
+  'updateAllItems' : ActorMethod<[Array<InventoryItem>], undefined>,
   'updateInventoryItemQuantity' : ActorMethod<[string, bigint], undefined>,
   'updatePersistentSettings' : ActorMethod<
     [string, string, string, string],

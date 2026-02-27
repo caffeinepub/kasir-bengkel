@@ -1,6 +1,6 @@
 {
   "frontend/src/App.tsx": "Main app with TanStack Router, dark theme provider, and routes for all 5 pages — updated to use `/inventory` route and `InventoryPage` component instead of the old `CatalogPage`.",
-  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend operations — restored `useDailyReport`, `useMonthlyReport`, and `useProfitLoss` to accept `bigint | null` parameters (with null-guarded query functions and `enabled` conditions) so ReportsPage can pass nullable timestamps without TypeScript errors.",
+  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend operations — covers inventory CRUD (including new `useUpdateAllItems` for bulk upsert), transactions, customers, shop settings, and reports with proper enabled conditions and query invalidation.",
   "frontend/src/components/Sidebar.tsx": "Dark navy sidebar with navigation links in Indonesian — 'Inventori', 'Kasir', 'Transaksi', 'Laporan', 'Pengaturan' — pointing to their respective routes.",
   "frontend/src/components/Receipt.tsx": "Print-friendly receipt component fully in Indonesian — transaction details, item list headers, totals, and footer message all use Indonesian text.",
   "frontend/src/lib/utils.ts": "Utility functions: cn (class merging), formatRupiah (IDR currency), formatDateTime/formatDate (Indonesian locale), and timestamp conversion helpers.",
@@ -11,6 +11,6 @@
   "frontend/src/pages/SettingsPage.tsx": "Shop settings page fully in Indonesian — logo upload, shop info form fields, buttons, progress messages, and toast notifications all use Indonesian text.",
   "frontend/src/index.css": "OKLCH design system with dark navy sidebar, orange-amber brand color, Inter/Roboto Condensed fonts, and comprehensive @media print rules for receipt-only printing.",
   "frontend/tailwind.config.js": "Extended Tailwind config with brand color tokens, Inter/Roboto Condensed font families, and custom shadow utilities.",
-  "frontend/src/pages/InventoryPage.tsx": "Inventory management page with add/edit/delete dialogs and Excel import/export — fixed to use `buildXlsx` (not the non-existent `writeXlsx`) for export and passes `buffer` (ArrayBuffer) directly to `readXlsx` instead of wrapping it in `Uint8Array`.",
+  "frontend/src/pages/InventoryPage.tsx": "Inventory management page with add/edit-stock/delete dialogs and async Excel import/export — updated `handleImport` to implement upsert logic using ID as the unique key: existing items are updated with all columns from the Excel file, new IDs are inserted, and items absent from the file remain unchanged; all changes are sent in a single `updateAllItems` call.",
   "frontend/src/lib/xlsx.ts": "Self-contained XLSX writer and reader using raw DEFLATE via CompressionStream — fixed the `readXlsx` function to correctly place each cell at its proper column index using the cell reference attribute (e.g. \"C5\"), handle rich-text `<r><t>` runs in shared strings, and support inline strings (`t=\"inlineStr\"`), ensuring all rows added below existing data in Excel are correctly parsed regardless of empty cells or column gaps."
 }

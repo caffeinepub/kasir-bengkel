@@ -170,6 +170,7 @@ export interface backendInterface {
     getTransaction(id: bigint): Promise<Transaction | null>;
     getTransactionsByCustomer(customer: string): Promise<Array<Transaction>>;
     getTransactionsByMonth(monthTimestamp: Time): Promise<Array<Transaction>>;
+    updateAllItems(items: Array<InventoryItem>): Promise<void>;
     updateInventoryItemQuantity(itemId: string, newQuantity: bigint): Promise<void>;
     updatePersistentSettings(shopName: string, address: string, phoneNumber: string, thankYouMessage: string): Promise<void>;
     uploadLogo(file: ExternalBlob): Promise<void>;
@@ -513,6 +514,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
         }
     }
+    async updateAllItems(arg0: Array<InventoryItem>): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateAllItems(to_candid_vec_n31(this._uploadFile, this._downloadFile, arg0));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateAllItems(to_candid_vec_n31(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
     async updateInventoryItemQuantity(arg0: string, arg1: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -544,14 +559,14 @@ export class Backend implements backendInterface {
     async uploadLogo(arg0: ExternalBlob): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.uploadLogo(await to_candid_ExternalBlob_n31(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.uploadLogo(await to_candid_ExternalBlob_n34(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.uploadLogo(await to_candid_ExternalBlob_n31(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.uploadLogo(await to_candid_ExternalBlob_n34(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -710,8 +725,11 @@ function from_candid_vec_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 function from_candid_vec_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_TransactionItem>): Array<TransactionItem> {
     return value.map((x)=>from_candid_TransactionItem_n23(_uploadFile, _downloadFile, x));
 }
-async function to_candid_ExternalBlob_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
+async function to_candid_ExternalBlob_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
     return await _uploadFile(value);
+}
+function to_candid_InventoryItem_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: InventoryItem): _InventoryItem {
+    return to_candid_record_n33(_uploadFile, _downloadFile, value);
 }
 function to_candid_ItemKind_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ItemKind): _ItemKind {
     return to_candid_variant_n10(_uploadFile, _downloadFile, value);
@@ -758,6 +776,30 @@ function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         proposed_top_up_amount: value.proposed_top_up_amount ? candid_some(value.proposed_top_up_amount) : candid_none()
     };
 }
+function to_candid_record_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: string;
+    purchasePrice: bigint;
+    kind: ItemKind;
+    name: string;
+    sellingPrice: bigint;
+    quantity?: bigint;
+}): {
+    id: string;
+    purchasePrice: bigint;
+    kind: _ItemKind;
+    name: string;
+    sellingPrice: bigint;
+    quantity: [] | [bigint];
+} {
+    return {
+        id: value.id,
+        purchasePrice: value.purchasePrice,
+        kind: to_candid_ItemKind_n9(_uploadFile, _downloadFile, value.kind),
+        name: value.name,
+        sellingPrice: value.sellingPrice,
+        quantity: value.quantity ? candid_some(value.quantity) : candid_none()
+    };
+}
 function to_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ItemKind): {
     service: null;
 } | {
@@ -771,6 +813,9 @@ function to_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint
 }
 function to_candid_vec_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<TransactionItem>): Array<_TransactionItem> {
     return value.map((x)=>to_candid_TransactionItem_n12(_uploadFile, _downloadFile, x));
+}
+function to_candid_vec_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<InventoryItem>): Array<_InventoryItem> {
+    return value.map((x)=>to_candid_InventoryItem_n32(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

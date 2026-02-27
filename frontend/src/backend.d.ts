@@ -78,6 +78,7 @@ export interface backendInterface {
     getTransaction(id: bigint): Promise<Transaction | null>;
     getTransactionsByCustomer(customer: string): Promise<Array<Transaction>>;
     getTransactionsByMonth(monthTimestamp: Time): Promise<Array<Transaction>>;
+    updateAllItems(items: Array<InventoryItem>): Promise<void>;
     updateInventoryItemQuantity(itemId: string, newQuantity: bigint): Promise<void>;
     updatePersistentSettings(shopName: string, address: string, phoneNumber: string, thankYouMessage: string): Promise<void>;
     uploadLogo(file: ExternalBlob): Promise<void>;

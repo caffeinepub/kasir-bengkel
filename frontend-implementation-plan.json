@@ -1,32 +1,23 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix inventory page: restore add and upload functionality",
+  "title": "Upsert by ID on Axle Excel Upload in Inventory",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Restore full functionality of the Inventory page so users can add new items via the add dialog and upload items via Excel import",
+      "summary": "Implement upsert logic for Excel import: use ID column as unique key to update existing items or insert new ones",
       "acceptanceCriteria": [
-        "The 'Add Item' dialog opens and successfully submits a new inventory item without errors.",
-        "The Excel import/upload functionality works correctly and adds items to the inventory.",
-        "Existing inventory items are still displayed correctly.",
-        "No console errors appear when opening the inventory page, the add dialog, or triggering the upload flow."
+        "Uploading an Excel file from Axle where an item's ID already exists in inventory updates that item's other fields (name, price, stock, etc.) without creating a duplicate.",
+        "Uploading an Excel file from Axle where an item's ID does not yet exist in inventory inserts it as a new inventory item.",
+        "Items in the current inventory whose IDs are NOT present in the uploaded Axle file remain unchanged.",
+        "The ID column is treated as case-insensitive or exact-match key (consistent with existing ID format).",
+        "After a successful upsert upload, the inventory table reflects all updated and newly added items immediately."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Debug and fix the add item dialog functionality to ensure it correctly validates and submits new inventory items using the addInventoryItem backend method. Verify that the form state management, validation logic, and mutation hooks are working correctly. Ensure the dialog opens, fields are editable, and submission triggers the backend call without errors."
-        },
-        {
-          "path": "frontend/src/pages/InventoryPage.tsx",
-          "operation": "modify",
-          "description": "Debug and fix the Excel import/upload functionality to ensure it correctly parses uploaded .xlsx files using the xlsx.ts utility, validates the data structure, and adds items to inventory via the addInventoryItem backend method. Verify that file selection triggers parsing, error handling displays meaningful messages, and successful uploads refresh the inventory list."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Verify that the addInventoryItem mutation hook is correctly configured with proper error handling, query invalidation after success, and toast notifications. Ensure the mutation accepts all required parameters (id, name, sellingPrice, purchasePrice, quantity, kind) and matches the backend interface signature."
+          "description": "Modify the Excel import handler to implement upsert logic: when processing uploaded rows, check if each item ID already exists in the current inventory; if it exists, merge/update all other columns (name, sellingPrice, purchasePrice, quantity, kind) with values from the uploaded file; if it does not exist, add it as a new item. Use the existing updateAllItems backend capability to replace the entire inventory with the merged result. Preserve the existing Excel export functionality and manual Add Item dialog unchanged."
         }
       ]
     }
