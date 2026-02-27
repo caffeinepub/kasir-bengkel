@@ -1,21 +1,23 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T00:44:36.392Z",
-  "summary": "The diff addresses both REQ-1 (Excel/XLSX fix) and REQ-2 (Indonesian language). REQ-1 is implemented in frontend/src/lib/xlsx.ts with a rewritten ZIP/DEFLATE builder using CompressionStream and a toPlainUint8Array helper to fix ArrayBuffer compatibility. REQ-2 is implemented across all page and component files with Indonesian text throughout. Both requirements appear to be addressed, though the xlsx.ts file description mentions fixing a TypeScript error specifically, and the actual correctness of the ZIP/CRC32 structure can only be partially verified from the diff summary.",
+  "generatedAt": "2026-02-27T01:05:56.349Z",
+  "summary": "Both REQ-1 and REQ-2 appear to be implemented in the diff. REQ-1 is addressed via a new useReplaceInventoryItem hook and updated Excel import logic in InventoryPage.tsx that uses item ID as the stable key. REQ-2 is addressed by renaming the button labels to 'Unggah' and 'Unduh' in InventoryPage.tsx.",
   "missing_requirements": [],
-  "hallucinated_features": [],
-  "confidence": 0.78,
+  "hallucinated_features": [
+    {
+      "description": "Import result dialog now shows both 'added' and 'updated' counts separately, beyond just a success count",
+      "reason": "The build request only required updating existing items by ID and adding new ones. A separate 'updated' counter displayed in the UI was not requested.",
+      "evidence": [
+        "frontend/src/pages/InventoryPage.tsx"
+      ]
+    }
+  ],
+  "confidence": 0.82,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/components/Receipt.tsx",
-    "frontend/src/components/Sidebar.tsx",
-    "frontend/src/lib/xlsx.ts",
-    "frontend/src/pages/CashierPage.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/InventoryPage.tsx",
-    "frontend/src/pages/ReportsPage.tsx",
-    "frontend/src/pages/SettingsPage.tsx",
-    "frontend/src/pages/TransactionHistoryPage.tsx",
     "project_state.json"
   ]
 }

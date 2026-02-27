@@ -84,6 +84,34 @@ export function useAddInventoryItem() {
   });
 }
 
+export function useReplaceInventoryItem() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      name: string;
+      sellingPrice: bigint;
+      purchasePrice: bigint;
+      quantity: bigint | null;
+      productType: ProductType;
+    }) => {
+      if (!actor) throw new Error('Actor not ready');
+      // Delete existing then re-add with updated data
+      await actor.deleteInventoryItem(data.id);
+      await actor.addInventoryItem(
+        data.id,
+        data.name,
+        data.sellingPrice,
+        data.purchasePrice,
+        data.quantity,
+        data.productType
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
+  });
+}
+
 export function useUpdateInventoryQuantity() {
   const { actor } = useActor();
   const qc = useQueryClient();

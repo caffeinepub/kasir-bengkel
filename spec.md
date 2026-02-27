@@ -1,10 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the broken Excel (.xlsx) download and restore all user-facing text to Indonesian language throughout the application.
+**Goal:** Fix Excel re-import on the Inventory page to update existing items by ID instead of duplicating them, and rename the import/export buttons to simpler labels.
 
 **Planned changes:**
-- Fix the custom XLSX writer in `frontend/src/lib/xlsx.ts` so the generated `.xlsx` file is valid and opens correctly in Microsoft Excel and LibreOffice Calc without errors
-- Audit and translate all user-facing text (page titles, navigation labels, buttons, table headers, form labels, placeholders, toast notifications, dialogs, and modals) back to Indonesian language
+- When importing an Excel file, match rows against existing items using the item ID (ID Barang) as the primary key; update matching items with the new field values from Excel instead of skipping or duplicating them
+- Rows in Excel with an ID not found in the app are added as new items; items not present in the Excel file remain unchanged
+- Rename the "Impor Excel" button to "Unggah" and the "Ekspor Excel" button to "Unduh" on the Inventory page
 
-**User-visible outcome:** Users can successfully download and open the inventory export as an Excel file, and all text throughout the application is displayed in Indonesian as it was before the recent changes.
+**User-visible outcome:** Users can export inventory to Excel, edit names/prices/stock in the file, re-import it, and see the changes reflected in the app. The import and export buttons are labeled "Unggah" and "Unduh" respectively.

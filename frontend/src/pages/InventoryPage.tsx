@@ -22,7 +22,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useInventoryItems, useAddInventoryItem, useDeleteInventoryItem, useUpdateInventoryQuantity } from '@/hooks/useQueries';
+import {
+  useInventoryItems,
+  useAddInventoryItem,
+  useDeleteInventoryItem,
+  useUpdateInventoryQuantity,
+  useReplaceInventoryItem,
+} from '@/hooks/useQueries';
 import { ProductType, type InventoryItem } from '@/backend';
 import { formatRupiah } from '@/lib/utils';
 import { buildXlsx, readXlsx } from '@/lib/xlsx';
@@ -50,6 +56,7 @@ export default function InventoryPage() {
   const addItem = useAddInventoryItem();
   const deleteItem = useDeleteInventoryItem();
   const updateQty = useUpdateInventoryQuantity();
+  const replaceItem = useReplaceInventoryItem();
 
   const [search, setSearch] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -64,9 +71,9 @@ export default function InventoryPage() {
   const [showImportResult, setShowImportResult] = useState(false);
   const [importResult, setImportResult] = useState<{
     success: number;
-    duplicates: string[];
+    updated: number;
     errors: string[];
-  }>({ success: 0, duplicates: [], errors: [] });
+  }>({ success: 0, updated: 0, errors: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = items.filter(
@@ -174,7 +181,7 @@ export default function InventoryPage() {
     }
   }
 
-  // ── Export Excel ─────────────────────────────────────────────────────────────
+  // ── Export / Unduh ────────────────────────────────────────────────────────────
   async function handleExport() {
     const headers = ['ID', 'Nama', 'Tipe', 'Stok', 'Harga Beli', 'Harga Jual'];
     const rows = items.map((item) => [
@@ -199,8 +206,8 @@ export default function InventoryPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('File Excel berhasil diunduh');
-    } catch (e) {
-      toast.error('Gagal mengekspor Excel');
+    } catch {
+      toast.error('Gagal mengunduh file Excel');
     }
   }
 
@@ -223,12 +230,16 @@ export default function InventoryPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Template berhasil diunduh');
-    } catch (e) {
+    } catch {
       toast.error('Gagal mengunduh template');
     }
   }
 
-  // ── Import Excel ─────────────────────────────────────────────────────────────
+  // ── Import / Unggah ───────────────────────────────────────────────────────────
+  // Uses item ID as the stable primary key:
+  //   - If ID exists in app → update (replace) the item with Excel data
+  //   - If ID is new → add as a new item
+  //   - Items not in the Excel file remain unchanged
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -241,9 +252,11 @@ export default function InventoryPage() {
         return;
       }
 
-      const existingIds = new Set(items.map((i) => Number(i.id)));
-      let successCount = 0;
-      const duplicates: string[] = [];
+      // Build a map of existing IDs for quick lookup
+      const existingIdSet = new Set(items.map((i) => Number(i.id)));
+
+      let addedCount = 0;
+      let updatedCount = 0;
       const errors: string[] = [];
 
       for (let i = 1; i < rows.length; i++) {
@@ -251,14 +264,15 @@ export default function InventoryPage() {
         if (!row || row.length < 6) continue;
         const [idStr, name, typeStr, qtyStr, purchasePriceStr, sellingPriceStr] = row;
         const id = Number(idStr);
-        if (isNaN(id)) {
+        if (isNaN(id) || id < 0) {
           errors.push(`Baris ${i + 1}: ID tidak valid`);
           continue;
         }
-        if (existingIds.has(id)) {
-          duplicates.push(`ID ${id} (${name})`);
+        if (!String(name).trim()) {
+          errors.push(`Baris ${i + 1}: Nama tidak boleh kosong`);
           continue;
         }
+
         const productType =
           typeStr?.toLowerCase() === 'jasa' || typeStr?.toLowerCase() === 'service'
             ? ProductType.service
@@ -268,24 +282,38 @@ export default function InventoryPage() {
         const quantity = productType === ProductType.goods ? Number(qtyStr) || 0 : null;
 
         try {
-          await addItem.mutateAsync({
-            id: BigInt(id),
-            name: String(name).trim(),
-            sellingPrice: BigInt(sellingPrice),
-            purchasePrice: BigInt(purchasePrice),
-            quantity: quantity !== null ? BigInt(quantity) : null,
-            productType,
-          });
-          existingIds.add(id);
-          successCount++;
+          if (existingIdSet.has(id)) {
+            // ID exists → update by replacing the item
+            await replaceItem.mutateAsync({
+              id: BigInt(id),
+              name: String(name).trim(),
+              sellingPrice: BigInt(sellingPrice),
+              purchasePrice: BigInt(purchasePrice),
+              quantity: quantity !== null ? BigInt(quantity) : null,
+              productType,
+            });
+            updatedCount++;
+          } else {
+            // New ID → add as new item
+            await addItem.mutateAsync({
+              id: BigInt(id),
+              name: String(name).trim(),
+              sellingPrice: BigInt(sellingPrice),
+              purchasePrice: BigInt(purchasePrice),
+              quantity: quantity !== null ? BigInt(quantity) : null,
+              productType,
+            });
+            existingIdSet.add(id);
+            addedCount++;
+          }
         } catch (err) {
           errors.push(`Baris ${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
-      setImportResult({ success: successCount, duplicates, errors });
+      setImportResult({ success: addedCount, updated: updatedCount, errors });
       setShowImportResult(true);
-    } catch (err) {
+    } catch {
       toast.error('Gagal membaca file Excel');
     } finally {
       setImportLoading(false);
@@ -308,9 +336,18 @@ export default function InventoryPage() {
             <FileSpreadsheet size={16} className="mr-1.5" />
             Unduh Template
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importLoading}>
-            {importLoading ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : <Upload size={16} className="mr-1.5" />}
-            Impor Excel
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importLoading}
+          >
+            {importLoading ? (
+              <Loader2 size={16} className="mr-1.5 animate-spin" />
+            ) : (
+              <Upload size={16} className="mr-1.5" />
+            )}
+            Unggah
           </Button>
           <input
             ref={fileInputRef}
@@ -321,9 +358,16 @@ export default function InventoryPage() {
           />
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download size={16} className="mr-1.5" />
-            Ekspor Excel
+            Unduh
           </Button>
-          <Button size="sm" onClick={() => { setForm(emptyForm()); setFormErrors({}); setShowAddDialog(true); }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setForm(emptyForm());
+              setFormErrors({});
+              setShowAddDialog(true);
+            }}
+          >
             <Plus size={16} className="mr-1.5" />
             Tambah Barang
           </Button>
@@ -366,7 +410,9 @@ export default function InventoryPage() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                  {search ? 'Tidak ada barang yang cocok' : 'Belum ada barang. Tambahkan barang pertama Anda!'}
+                  {search
+                    ? 'Tidak ada barang yang cocok'
+                    : 'Belum ada barang. Tambahkan barang pertama Anda!'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -395,7 +441,12 @@ export default function InventoryPage() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                         <Pencil size={15} />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openDelete(item)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => openDelete(item)}
+                      >
                         <Trash2 size={15} />
                       </Button>
                     </div>
@@ -470,7 +521,9 @@ export default function InventoryPage() {
                   value={form.purchasePrice}
                   onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
                 />
-                {formErrors.purchasePrice && <p className="text-xs text-destructive">{formErrors.purchasePrice}</p>}
+                {formErrors.purchasePrice && (
+                  <p className="text-xs text-destructive">{formErrors.purchasePrice}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Harga Jual (Rp)</Label>
@@ -480,14 +533,18 @@ export default function InventoryPage() {
                   value={form.sellingPrice}
                   onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                 />
-                {formErrors.sellingPrice && <p className="text-xs text-destructive">{formErrors.sellingPrice}</p>}
+                {formErrors.sellingPrice && (
+                  <p className="text-xs text-destructive">{formErrors.sellingPrice}</p>
+                )}
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Batal
+            </Button>
             <Button onClick={handleAdd} disabled={addItem.isPending}>
-              {addItem.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              {addItem.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
               Simpan
             </Button>
           </DialogFooter>
@@ -500,33 +557,35 @@ export default function InventoryPage() {
           <DialogHeader>
             <DialogTitle>Edit Stok Barang</DialogTitle>
             <DialogDescription>
-              {selectedItem?.productType === ProductType.goods
-                ? 'Perbarui jumlah stok barang.'
-                : 'Jasa tidak memiliki stok.'}
+              Perbarui jumlah stok untuk <strong>{selectedItem?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Nama</Label>
-              <Input value={form.name} disabled />
-            </div>
-            {selectedItem?.productType === ProductType.goods && (
+            {selectedItem?.productType === ProductType.goods ? (
               <div className="space-y-1.5">
-                <Label>Stok Baru</Label>
+                <Label>Stok Saat Ini</Label>
                 <Input
                   type="number"
                   placeholder="Jumlah stok"
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                 />
-                {formErrors.quantity && <p className="text-xs text-destructive">{formErrors.quantity}</p>}
+                {formErrors.quantity && (
+                  <p className="text-xs text-destructive">{formErrors.quantity}</p>
+                )}
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Jasa tidak memiliki stok untuk diperbarui.
+              </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Batal
+            </Button>
             <Button onClick={handleEdit} disabled={updateQty.isPending}>
-              {updateQty.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              {updateQty.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
               Simpan
             </Button>
           </DialogFooter>
@@ -539,13 +598,16 @@ export default function InventoryPage() {
           <DialogHeader>
             <DialogTitle>Hapus Barang</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus <strong>{selectedItem?.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus <strong>{selectedItem?.name}</strong>? Tindakan ini
+              tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Batal
+            </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteItem.isPending}>
-              {deleteItem.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              {deleteItem.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
               Hapus
             </Button>
           </DialogFooter>
@@ -556,32 +618,35 @@ export default function InventoryPage() {
       <Dialog open={showImportResult} onOpenChange={setShowImportResult}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hasil Impor Excel</DialogTitle>
+            <DialogTitle>Hasil Unggah</DialogTitle>
+            <DialogDescription>Ringkasan proses unggah file Excel.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 size={16} className="text-green-500" />
-              <span>{importResult.success} barang berhasil diimpor</span>
-            </div>
-            {importResult.duplicates.length > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-yellow-600">
-                  <AlertCircle size={16} />
-                  <span>{importResult.duplicates.length} data duplikat dilewati:</span>
-                </div>
-                <ul className="text-xs text-muted-foreground pl-6 list-disc space-y-0.5">
-                  {importResult.duplicates.map((d, i) => <li key={i}>{d}</li>)}
-                </ul>
+            {importResult.success > 0 && (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle2 size={16} />
+                <span>{importResult.success} barang baru berhasil ditambahkan</span>
               </div>
+            )}
+            {importResult.updated > 0 && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                <CheckCircle2 size={16} />
+                <span>{importResult.updated} barang berhasil diperbarui</span>
+              </div>
+            )}
+            {importResult.success === 0 && importResult.updated === 0 && importResult.errors.length === 0 && (
+              <p className="text-sm text-muted-foreground">Tidak ada perubahan yang dilakukan.</p>
             )}
             {importResult.errors.length > 0 && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle size={16} />
-                  <span>{importResult.errors.length} baris gagal:</span>
+                  <span>{importResult.errors.length} baris gagal diproses:</span>
                 </div>
-                <ul className="text-xs text-muted-foreground pl-6 list-disc space-y-0.5">
-                  {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                <ul className="text-xs text-muted-foreground space-y-0.5 pl-6 list-disc max-h-40 overflow-y-auto">
+                  {importResult.errors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
                 </ul>
               </div>
             )}

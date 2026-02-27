@@ -1,77 +1,38 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix Excel download bug and restore Indonesian UI language",
+  "title": "Fix Excel re-import to update records by item ID, rename import/export buttons",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Fix the custom XLSX writer in xlsx.ts to generate valid, non-corrupt .xlsx files that open successfully in Excel and LibreOffice Calc",
+      "summary": "Use item ID as stable key during Excel import: update existing items when ID matches, create new items only for unmatched IDs",
       "acceptanceCriteria": [
-        "Clicking the export/download button on the Inventory page generates a .xlsx file that opens successfully in Microsoft Excel.",
-        "The downloaded file opens successfully in LibreOffice Calc without errors.",
-        "All inventory data rows and headers are present and correctly formatted in the opened file.",
-        "The ZIP/zlib structure, CRC32/Adler32 checksums, and Office Open XML parts in xlsx.ts are valid and well-formed."
+        "Downloading the inventory as Excel, editing a row's name or price in Excel, then re-uploading the file causes the corresponding item in the app to reflect the edited values.",
+        "An item whose ID exists in both the app and the Excel file is updated, not duplicated.",
+        "A row in Excel with an ID not found in the app is added as a new item.",
+        "Items in the app that have no matching row in the uploaded Excel file remain unchanged."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/lib/xlsx.ts",
-          "operation": "modify",
-          "description": "Fix the XLSX writer to produce valid Office Open XML files. Correct the ZIP structure, ensure proper CRC32 checksums for all entries, fix zlib DEFLATE compression with valid Adler32 checksums, ensure correct directory structure and file ordering, and validate all XML namespace declarations and relationships match Office Open XML specifications."
-        },
-        {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Verify the Excel export flow correctly passes inventory data to the fixed xlsx.ts writer and triggers the download with proper MIME type and filename. Ensure column headers and data rows are properly formatted for the XLSX export."
+          "description": "Modify the Excel import handler (handleImport function) to treat 'ID Barang' as the stable primary key. When processing each row from the uploaded Excel file, check if an item with matching ID already exists in the current inventory. If found, call the backend mutation to update that item's fields (name, selling price, purchase price, quantity, product type) with values from Excel. If the ID is not found, add it as a new item. Ensure items not present in the Excel file remain unchanged."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Replace all English text throughout the application with Indonesian translations to restore the original language consistency",
+      "summary": "Rename 'Impor Excel' button to 'Unggah' and 'Ekspor Excel' button to 'Unduh' on the Inventory page",
       "acceptanceCriteria": [
-        "All page titles, navigation labels, and sidebar links are displayed in Indonesian.",
-        "All button labels (e.g., add, save, delete, export, import, download template) are in Indonesian.",
-        "All table column headers on the Inventory, Transactions, and Reports pages are in Indonesian.",
-        "All form field labels and placeholder text are in Indonesian.",
-        "All toast/notification messages (success, error, warning) are in Indonesian.",
-        "All dialog and modal content (titles, descriptions, confirm/cancel buttons) are in Indonesian.",
-        "No English text is visible to the end user anywhere in the application."
+        "The button previously labeled 'Impor Excel' now displays 'Unggah'.",
+        "The button previously labeled 'Ekspor Excel' now displays 'Unduh'.",
+        "Both buttons retain their existing functionality."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/Sidebar.tsx",
-          "operation": "modify",
-          "description": "Replace all navigation link labels with Indonesian: 'Cashier' → 'Kasir', 'Inventory' → 'Inventori', 'Transactions' → 'Transaksi', 'Reports' → 'Laporan', 'Settings' → 'Pengaturan'. Ensure the branded header text remains 'Kasir Bengkel'."
-        },
-        {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Replace all English text with Indonesian equivalents: page title, search placeholder, button labels (add, edit, delete, export, import, download template), table headers (ID, Name, Type, Quantity, Purchase Price, Selling Price, Actions), dialog titles and content, form field labels and placeholders, validation messages, and toast notifications. Ensure 'goods' → 'Barang' and 'service' → 'Jasa' for product types."
-        },
-        {
-          "path": "frontend/src/pages/CashierPage.tsx",
-          "operation": "modify",
-          "description": "Replace all English text with Indonesian: page title, search placeholder, form field labels (customer name, vehicle info, discount), button labels (add to cart, checkout, print receipt, new transaction), table headers (item, type, quantity, price, subtotal, actions), cart summary labels (subtotal, discount, total), dialog content, validation messages, and toast notifications."
-        },
-        {
-          "path": "frontend/src/pages/TransactionHistoryPage.tsx",
-          "operation": "modify",
-          "description": "Replace all English text with Indonesian: page title, search placeholder, date range labels, button labels (view details, print, delete, clear filters), table headers (ID, date, customer, vehicle, total, actions), dialog titles and content, and toast notifications."
-        },
-        {
-          "path": "frontend/src/pages/ReportsPage.tsx",
-          "operation": "modify",
-          "description": "Replace all English text with Indonesian: page title, tab labels (daily report, monthly report, top selling items, profit/loss), date pickers and labels, table headers, metric labels (revenue, transactions, profit, loss), button labels, and any status or error messages."
-        },
-        {
-          "path": "frontend/src/pages/SettingsPage.tsx",
-          "operation": "modify",
-          "description": "Replace all English text with Indonesian: page title, form field labels (shop name, address, phone number, thank you message, logo), button labels (save, upload, remove), placeholder text, upload progress messages, validation messages, and toast notifications."
-        },
-        {
-          "path": "frontend/src/components/Receipt.tsx",
-          "operation": "modify",
-          "description": "Replace all English text with Indonesian: receipt headers and labels (date, customer, vehicle, item list headers, subtotal, discount, total, thank you message). Ensure all printed receipt content uses Indonesian text."
+          "description": "Update the button labels in the InventoryPage component: change the 'Impor Excel' button text to 'Unggah' and the 'Ekspor Excel' button text to 'Unduh'. Do not change the onClick handlers or button functionality."
         }
       ]
     }
