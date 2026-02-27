@@ -4,16 +4,20 @@ import Array "mo:core/Array";
 import Time "mo:core/Time";
 import Nat "mo:core/Nat";
 import Set "mo:core/Set";
+import Int "mo:core/Int";
 import Order "mo:core/Order";
+import Principal "mo:core/Principal";
+import Runtime "mo:core/Runtime";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
-import Runtime "mo:core/Runtime";
-import Migration "migration";
+import MixinAuthorization "authorization/MixinAuthorization";
+import AccessControl "authorization/access-control";
 
-// Apply data migration function on upgrades:
-(with migration = Migration.run)
 actor {
   include MixinStorage();
+
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
 
   /////////////////////////////////////////////////////////////////////////////
   //////////////////////            Types              ////////////////////////
@@ -47,6 +51,7 @@ actor {
     items : [TransactionItem];
     total : Nat;
     customerName : Text;
+    customerPhone : Text;
     vehicleInfo : Text;
   };
 
@@ -76,23 +81,69 @@ actor {
     };
   };
 
+  // WorkOrder Types
+  public type WorkOrderStatus = { #pending; #inProgress; #done; #cancelled };
+  public type WorkOrder = {
+    id : Text;
+    workOrderNumber : Text;
+    customerName : Text;
+    customerPhone : Text;
+    vehicles : [Text];
+    dateIn : Int;
+    dateOut : ?Int;
+    problemDescription : Text;
+    repairAction : Text;
+    technician : Text;
+    status : WorkOrderStatus;
+  };
+
+  // User Profile Type
+  public type UserProfile = {
+    name : Text;
+  };
+
   /////////////////////////////////////////////////////////////////////////////
   //////////////////////         State              ///////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
   var persistentNextTransactionId = 0;
+  var persistentNextWorkOrderId = 0;
+  var persistentNextWorkOrderNumber = 0;
   var persistentSettings : ?ShopSettings = null;
 
-  // Maps for persistent storage
   let persistentCustomers = Set.empty<Text>();
   let persistentTransactions = Map.empty<Nat, Transaction>();
   var persistentInventory = Map.empty<Text, InventoryItem>();
+  var persistentWorkOrders = Map.empty<Text, WorkOrder>();
+  let userProfiles = Map.empty<Principal, UserProfile>();
+
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        User Profiles          ////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+
+  public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
+    userProfiles.get(caller);
+  };
+
+  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Can only view your own profile");
+    };
+    userProfiles.get(user);
+  };
+
+  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    userProfiles.add(caller, profile);
+  };
 
   /////////////////////////////////////////////////////////////////////////////
   //////////////////////        Shop Settings      ////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
   public shared ({ caller }) func uploadLogo(file : Storage.ExternalBlob) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can upload logo");
+    };
     persistentSettings := switch (persistentSettings) {
       case (null) {
         ?{
@@ -110,6 +161,9 @@ actor {
   };
 
   public shared ({ caller }) func updatePersistentSettings(shopName : Text, address : Text, phoneNumber : Text, thankYouMessage : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can update shop settings");
+    };
     persistentSettings := switch (persistentSettings) {
       case (null) {
         ?{
@@ -132,11 +186,11 @@ actor {
     };
   };
 
-  public query ({ caller }) func getPersistentSettings() : async ShopSettings {
-    switch (persistentSettings) {
-      case (null) { Runtime.trap("Shop settings not found") };
-      case (?settings) { settings };
+  public query ({ caller }) func getPersistentSettings() : async ?ShopSettings {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view shop settings");
     };
+    persistentSettings;
   };
 
   /////////////////////////////////////////////////////////////////////////////
@@ -144,25 +198,28 @@ actor {
   /////////////////////////////////////////////////////////////////////////////
 
   public shared ({ caller }) func addInventoryItem(id : Text, name : Text, sellingPrice : Nat, purchasePrice : Nat, quantity : ?Nat, kind : ItemKind) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can add inventory items");
+    };
     if (name == "") {
-      Runtime.trap("Name cannot be empty");
+      return;
     };
 
     if (persistentInventory.containsKey(id)) {
-      Runtime.trap("ID " # id # " already exists.");
+      return;
     };
 
     switch (kind) {
       case (#goods) {
         switch (quantity) {
-          case (null) { Runtime.trap("Quantity required for goods") };
+          case (null) { return };
           case (?q) {
-            if (q == 0) { Runtime.trap("Quantity must be greater than 0") };
+            if (q == 0) { return };
           };
         };
       };
       case (#service) {
-        if (quantity != null) { Runtime.trap("Quantity should not be provided for services") };
+        if (quantity != null) { return };
       };
     };
 
@@ -179,35 +236,50 @@ actor {
   };
 
   public shared ({ caller }) func updateInventoryItemQuantity(itemId : Text, newQuantity : Nat) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can update inventory item quantity");
+    };
     switch (persistentInventory.get(itemId)) {
-      case (null) { Runtime.trap("Inventory item not found") };
+      case (null) { return };
       case (?item) {
         if (item.kind == #goods) {
           let updatedItem = { item with quantity = ?newQuantity };
           persistentInventory.add(itemId, updatedItem);
         } else {
-          Runtime.trap("Cannot update quantity for services");
+          return;
         };
       };
     };
   };
 
   public shared ({ caller }) func updateAllItems(items : [InventoryItem]) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can update inventory items");
+    };
     for (item in items.values()) {
       persistentInventory.add(item.id, item);
     };
   };
 
   public shared ({ caller }) func deleteInventoryItem(id : Text) : async () {
-    if (not persistentInventory.containsKey(id)) { Runtime.trap("Inventory item ID does not exist.") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can delete inventory items");
+    };
+    if (not persistentInventory.containsKey(id)) { return };
     persistentInventory.remove(id);
   };
 
   public query ({ caller }) func getAllInventoryItems() : async [InventoryItem] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view inventory items");
+    };
     persistentInventory.values().toArray();
   };
 
   public query ({ caller }) func getInventoryItem(id : Text) : async ?InventoryItem {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view inventory items");
+    };
     persistentInventory.get(id);
   };
 
@@ -215,7 +287,10 @@ actor {
   //////////////////////        Transactions          /////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
-  public shared ({ caller }) func createTransaction(items : [TransactionItem], total : Nat, customerName : Text, vehicleInfo : Text) : async Nat {
+  public shared ({ caller }) func createTransaction(items : [TransactionItem], total : Nat, customerName : Text, customerPhone : Text, vehicleInfo : Text) : async Nat {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can create transactions");
+    };
     let id = persistentNextTransactionId;
     persistentNextTransactionId += 1;
 
@@ -225,6 +300,7 @@ actor {
       items;
       total;
       customerName;
+      customerPhone;
       vehicleInfo;
     };
 
@@ -233,15 +309,16 @@ actor {
   };
 
   public query ({ caller }) func getTransaction(id : Nat) : async ?Transaction {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view transactions");
+    };
     persistentTransactions.get(id);
   };
 
-  public shared ({ caller }) func deleteTransaction(id : Nat) : async () {
-    if (not persistentTransactions.containsKey(id)) { Runtime.trap("Transaction ID does not exist.") };
-    persistentTransactions.remove(id);
-  };
-
   public query ({ caller }) func getAllTransactions() : async [Transaction] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view transactions");
+    };
     persistentTransactions.values().toArray();
   };
 
@@ -250,16 +327,25 @@ actor {
   /////////////////////////////////////////////////////////////////////////////
 
   public query ({ caller }) func getAllCustomers() : async [Text] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view customers");
+    };
     persistentCustomers.toArray();
   };
 
   public shared ({ caller }) func addCustomer(customer : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can add customers");
+    };
     persistentCustomers.add(customer);
   };
 
   public shared ({ caller }) func deleteCustomer(customer : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can delete customers");
+    };
     if (not persistentCustomers.contains(customer)) {
-      Runtime.trap("Customer does not exist");
+      return;
     };
     persistentCustomers.remove(customer);
   };
@@ -269,6 +355,9 @@ actor {
   /////////////////////////////////////////////////////////////////////////////
 
   public query ({ caller }) func getTransactionsByCustomer(customer : Text) : async [Transaction] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     persistentTransactions.values().toArray().filter(
       func(transaction) {
         transaction.customerName == customer;
@@ -277,6 +366,9 @@ actor {
   };
 
   public query ({ caller }) func getTransactionsByMonth(monthTimestamp : Time.Time) : async [Transaction] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     persistentTransactions.values().toArray().filter(
       func(transaction) {
         isSameMonth(transaction.timestamp, monthTimestamp);
@@ -285,6 +377,9 @@ actor {
   };
 
   public query ({ caller }) func getDailyReport(day : Time.Time) : async DailyReport {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     let daySeconds = day / 1_000_000_000;
     var dailyTotalRevenue = 0;
     var dailyTransactionCount = 0;
@@ -305,6 +400,9 @@ actor {
   };
 
   public query ({ caller }) func getMonthlyReport(month : Time.Time) : async MonthlyReport {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     var monthlyTotalRevenue = 0;
     var monthlyTransactionCount = 0;
 
@@ -323,6 +421,9 @@ actor {
   };
 
   public query ({ caller }) func getTopSellingItems(count : Nat) : async [(Text, Nat)] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     let itemCounts = Map.empty<Text, Nat>();
 
     for ((_, transaction) in persistentTransactions.entries()) {
@@ -355,6 +456,9 @@ actor {
   };
 
   public query ({ caller }) func calculateProfitLoss(startTime : Time.Time, endTime : Time.Time) : async Nat {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view reports");
+    };
     var totalProfit : Nat = 0;
 
     let transactions = persistentTransactions.values().toArray();
@@ -387,4 +491,98 @@ actor {
     dt1 >= dt2 and dt1 < (dt2 + 30 * 24 * 60 * 60);
   };
 
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Work Order Logic        ///////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+
+  public query ({ caller }) func listWorkOrders() : async [WorkOrder] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can list work orders");
+    };
+    persistentWorkOrders.toArray().map(func((_, workOrder)) { workOrder }).reverse();
+  };
+
+  public query ({ caller }) func getWorkOrder(id : Text) : async ?WorkOrder {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view work orders");
+    };
+    persistentWorkOrders.get(id);
+  };
+
+  public shared ({ caller }) func deleteWorkOrder(id : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can delete work orders");
+    };
+    if (not persistentWorkOrders.containsKey(id)) { return };
+    persistentWorkOrders.remove(id);
+  };
+
+  public shared ({ caller }) func updateWorkOrder(workOrder : WorkOrder) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can update work orders");
+    };
+    if (not persistentWorkOrders.containsKey(workOrder.id)) {
+      return;
+    };
+
+    persistentWorkOrders.add(workOrder.id, workOrder);
+  };
+
+  public shared ({ caller }) func createWorkOrder(customerName : Text, customerPhone : Text, vehicles : [Text], dateIn : Int, problemDescription : Text, repairAction : Text, technician : Text) : async WorkOrder {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can create work orders");
+    };
+    persistentNextWorkOrderId += 1;
+    persistentNextWorkOrderNumber += 1;
+
+    let orderNumber = makeOrderNumber(Time.now());
+    let id = persistentNextWorkOrderId.toText();
+
+    let workOrder : WorkOrder = {
+      id;
+      workOrderNumber = orderNumber;
+      customerName;
+      customerPhone;
+      vehicles;
+      dateIn;
+      dateOut = null;
+      problemDescription;
+      repairAction;
+      technician;
+      status = #pending;
+    };
+
+    persistentWorkOrders.add(id, workOrder);
+    workOrder;
+  };
+
+  func makeOrderNumber(time : Int) : Text {
+    let year = Int.abs((time / 1_000_000_000) / (60 * 60 * 24 * 365));
+    let month = Int.abs((time / 1_000_000_000) / (60 * 60 * 24 * 30));
+    let day = Int.abs((time / 1_000_000_000) / (60 * 60 * 24));
+
+    let yearSuffix = year % 100;
+    timeOrderNumberString(yearSuffix, month, day, persistentNextWorkOrderNumber);
+  };
+
+  func timeOrderNumberString(year : Nat, month : Nat, day : Nat, number : Nat) : Text {
+    let yearStr = padLeft(year.toText(), "0", 2);
+    let monthStr = padLeft(month.toText(), "0", 2);
+    let dayStr = padLeft(day.toText(), "0", 2);
+    let numberStr = padLeft(number.toText(), "0", 4);
+
+    yearStr # monthStr # dayStr # numberStr;
+  };
+
+  func padLeft(str : Text, padChar : Text, desiredLength : Nat) : Text {
+    let currentLength = str.size();
+    if (currentLength >= desiredLength) { return str };
+
+    let paddingLength = desiredLength - currentLength;
+    var paddedResult = str;
+    for (_ in Nat.range(0, paddingLength)) {
+      paddedResult := padChar # paddedResult;
+    };
+    paddedResult;
+  };
 };

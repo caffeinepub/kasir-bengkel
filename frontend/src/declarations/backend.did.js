@@ -23,6 +23,11 @@ export const ItemKind = IDL.Variant({
   'service' : IDL.Null,
   'goods' : IDL.Null,
 });
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const Time = IDL.Int;
 export const TransactionItem = IDL.Record({
   'id' : IDL.Text,
@@ -30,6 +35,25 @@ export const TransactionItem = IDL.Record({
   'itemType' : ItemKind,
   'quantity' : IDL.Nat,
   'price' : IDL.Nat,
+});
+export const WorkOrderStatus = IDL.Variant({
+  'cancelled' : IDL.Null,
+  'pending' : IDL.Null,
+  'done' : IDL.Null,
+  'inProgress' : IDL.Null,
+});
+export const WorkOrder = IDL.Record({
+  'id' : IDL.Text,
+  'customerName' : IDL.Text,
+  'status' : WorkOrderStatus,
+  'technician' : IDL.Text,
+  'vehicles' : IDL.Vec(IDL.Text),
+  'dateOut' : IDL.Opt(IDL.Int),
+  'dateIn' : IDL.Int,
+  'customerPhone' : IDL.Text,
+  'repairAction' : IDL.Text,
+  'problemDescription' : IDL.Text,
+  'workOrderNumber' : IDL.Text,
 });
 export const InventoryItem = IDL.Record({
   'id' : IDL.Text,
@@ -44,9 +68,11 @@ export const Transaction = IDL.Record({
   'customerName' : IDL.Text,
   'vehicleInfo' : IDL.Text,
   'total' : IDL.Nat,
+  'customerPhone' : IDL.Text,
   'timestamp' : Time,
   'items' : IDL.Vec(TransactionItem),
 });
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const DailyReport = IDL.Record({
   'day' : Time,
   'totalRevenue' : IDL.Nat,
@@ -93,24 +119,41 @@ export const idlService = IDL.Service({
       [],
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addCustomer' : IDL.Func([IDL.Text], [], []),
   'addInventoryItem' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Opt(IDL.Nat), ItemKind],
       [],
       [],
     ),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'calculateProfitLoss' : IDL.Func([Time, Time], [IDL.Nat], ['query']),
   'createTransaction' : IDL.Func(
-      [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text],
+      [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
+      [],
+    ),
+  'createWorkOrder' : IDL.Func(
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Vec(IDL.Text),
+        IDL.Int,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+      ],
+      [WorkOrder],
       [],
     ),
   'deleteCustomer' : IDL.Func([IDL.Text], [], []),
   'deleteInventoryItem' : IDL.Func([IDL.Text], [], []),
-  'deleteTransaction' : IDL.Func([IDL.Nat], [], []),
+  'deleteWorkOrder' : IDL.Func([IDL.Text], [], []),
   'getAllCustomers' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
   'getAllInventoryItems' : IDL.Func([], [IDL.Vec(InventoryItem)], ['query']),
   'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getDailyReport' : IDL.Func([Time], [DailyReport], ['query']),
   'getInventoryItem' : IDL.Func(
       [IDL.Text],
@@ -118,7 +161,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getMonthlyReport' : IDL.Func([Time], [MonthlyReport], ['query']),
-  'getPersistentSettings' : IDL.Func([], [ShopSettings], ['query']),
+  'getPersistentSettings' : IDL.Func([], [IDL.Opt(ShopSettings)], ['query']),
   'getTopSellingItems' : IDL.Func(
       [IDL.Nat],
       [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat))],
@@ -135,6 +178,15 @@ export const idlService = IDL.Service({
       [IDL.Vec(Transaction)],
       ['query'],
     ),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'getWorkOrder' : IDL.Func([IDL.Text], [IDL.Opt(WorkOrder)], ['query']),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'listWorkOrders' : IDL.Func([], [IDL.Vec(WorkOrder)], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'updateAllItems' : IDL.Func([IDL.Vec(InventoryItem)], [], []),
   'updateInventoryItemQuantity' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'updatePersistentSettings' : IDL.Func(
@@ -142,6 +194,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'updateWorkOrder' : IDL.Func([WorkOrder], [], []),
   'uploadLogo' : IDL.Func([ExternalBlob], [], []),
 });
 
@@ -160,6 +213,11 @@ export const idlFactory = ({ IDL }) => {
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
   const ItemKind = IDL.Variant({ 'service' : IDL.Null, 'goods' : IDL.Null });
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const Time = IDL.Int;
   const TransactionItem = IDL.Record({
     'id' : IDL.Text,
@@ -167,6 +225,25 @@ export const idlFactory = ({ IDL }) => {
     'itemType' : ItemKind,
     'quantity' : IDL.Nat,
     'price' : IDL.Nat,
+  });
+  const WorkOrderStatus = IDL.Variant({
+    'cancelled' : IDL.Null,
+    'pending' : IDL.Null,
+    'done' : IDL.Null,
+    'inProgress' : IDL.Null,
+  });
+  const WorkOrder = IDL.Record({
+    'id' : IDL.Text,
+    'customerName' : IDL.Text,
+    'status' : WorkOrderStatus,
+    'technician' : IDL.Text,
+    'vehicles' : IDL.Vec(IDL.Text),
+    'dateOut' : IDL.Opt(IDL.Int),
+    'dateIn' : IDL.Int,
+    'customerPhone' : IDL.Text,
+    'repairAction' : IDL.Text,
+    'problemDescription' : IDL.Text,
+    'workOrderNumber' : IDL.Text,
   });
   const InventoryItem = IDL.Record({
     'id' : IDL.Text,
@@ -181,9 +258,11 @@ export const idlFactory = ({ IDL }) => {
     'customerName' : IDL.Text,
     'vehicleInfo' : IDL.Text,
     'total' : IDL.Nat,
+    'customerPhone' : IDL.Text,
     'timestamp' : Time,
     'items' : IDL.Vec(TransactionItem),
   });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
   const DailyReport = IDL.Record({
     'day' : Time,
     'totalRevenue' : IDL.Nat,
@@ -230,24 +309,41 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addCustomer' : IDL.Func([IDL.Text], [], []),
     'addInventoryItem' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Opt(IDL.Nat), ItemKind],
         [],
         [],
       ),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'calculateProfitLoss' : IDL.Func([Time, Time], [IDL.Nat], ['query']),
     'createTransaction' : IDL.Func(
-        [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
+        [],
+      ),
+    'createWorkOrder' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Vec(IDL.Text),
+          IDL.Int,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+        ],
+        [WorkOrder],
         [],
       ),
     'deleteCustomer' : IDL.Func([IDL.Text], [], []),
     'deleteInventoryItem' : IDL.Func([IDL.Text], [], []),
-    'deleteTransaction' : IDL.Func([IDL.Nat], [], []),
+    'deleteWorkOrder' : IDL.Func([IDL.Text], [], []),
     'getAllCustomers' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
     'getAllInventoryItems' : IDL.Func([], [IDL.Vec(InventoryItem)], ['query']),
     'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getDailyReport' : IDL.Func([Time], [DailyReport], ['query']),
     'getInventoryItem' : IDL.Func(
         [IDL.Text],
@@ -255,7 +351,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getMonthlyReport' : IDL.Func([Time], [MonthlyReport], ['query']),
-    'getPersistentSettings' : IDL.Func([], [ShopSettings], ['query']),
+    'getPersistentSettings' : IDL.Func([], [IDL.Opt(ShopSettings)], ['query']),
     'getTopSellingItems' : IDL.Func(
         [IDL.Nat],
         [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat))],
@@ -272,6 +368,15 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Transaction)],
         ['query'],
       ),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'getWorkOrder' : IDL.Func([IDL.Text], [IDL.Opt(WorkOrder)], ['query']),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'listWorkOrders' : IDL.Func([], [IDL.Vec(WorkOrder)], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'updateAllItems' : IDL.Func([IDL.Vec(InventoryItem)], [], []),
     'updateInventoryItemQuantity' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'updatePersistentSettings' : IDL.Func(
@@ -279,6 +384,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'updateWorkOrder' : IDL.Func([WorkOrder], [], []),
     'uploadLogo' : IDL.Func([ExternalBlob], [], []),
   });
 };

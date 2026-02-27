@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Change the Axle Excel import in the Inventory page to use the ID column as a unique key, upserting items instead of always inserting new ones.
+**Goal:** Fix the broken Work Order button on the Service page and revert the Cashier and Inventory pages to their stable Draft Version 15 state.
 
 **Planned changes:**
-- When processing an Axle-exported Excel upload, check each item's ID against existing inventory records.
-- If a matching ID is found, update that item's fields (name, price, stock, category, etc.) with values from the file.
-- If no matching ID is found, insert the item as a new inventory entry.
-- Items in inventory whose IDs are not present in the uploaded file are left unchanged.
+- Fix the Work Order button in `ServicePage.tsx` so clicking it correctly opens the work order detail or completion dialog without errors.
+- Revert `CashierPage.tsx` to its Draft Version 15 implementation, removing all changes from Versions 16–19.
+- Revert `InventoryPage.tsx` to its Draft Version 15 implementation, removing all changes from Versions 16–19.
 
-**User-visible outcome:** After uploading an Axle Excel file, existing inventory items with matching IDs are updated in place rather than duplicated, while new IDs are added as new items and unaffected items remain unchanged.
+**User-visible outcome:** The Work Order button on the Service page is fully functional, and the Cashier and Inventory pages behave exactly as they did in Version 15, with no regressions from later versions.

@@ -1,15 +1,62 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "./useActor";
-import { ItemKind } from "@/backend";
-import type { InventoryItem, Transaction, ShopSettings, DailyReport, MonthlyReport } from "@/backend";
-import { ExternalBlob } from "@/backend";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useActor } from './useActor';
+import type {
+  InventoryItem,
+  ItemKind,
+  TransactionItem,
+  WorkOrder,
+  UserProfile,
+  DailyReport,
+  MonthlyReport,
+  ShopSettings,
+  Transaction,
+  ExternalBlob,
+} from '../backend';
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+export function useGetCallerUserProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  const query = useQuery<UserProfile | null>({
+    queryKey: ['currentUserProfile'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getCallerUserProfile();
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
+  });
+
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+  };
+}
+
+export function useSaveCallerUserProfile() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.saveCallerUserProfile(profile);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+    },
+  });
+}
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 export function useInventoryItems() {
   const { actor, isFetching } = useActor();
+
   return useQuery<InventoryItem[]>({
-    queryKey: ["inventory"],
+    queryKey: ['inventory'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllInventoryItems();
@@ -21,8 +68,9 @@ export function useInventoryItems() {
 export function useAddInventoryItem() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async (params: {
+    mutationFn: async (item: {
       id: string;
       name: string;
       sellingPrice: bigint;
@@ -30,46 +78,18 @@ export function useAddInventoryItem() {
       quantity: bigint | null;
       kind: ItemKind;
     }) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.addInventoryItem(
-        params.id,
-        params.name,
-        params.sellingPrice,
-        params.purchasePrice,
-        params.quantity,
-        params.kind
+      if (!actor) throw new Error('Actor not available');
+      return actor.addInventoryItem(
+        item.id,
+        item.name,
+        item.sellingPrice,
+        item.purchasePrice,
+        item.quantity,
+        item.kind
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-    },
-  });
-}
-
-export function useUpdateAllItems() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (items: InventoryItem[]) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.updateAllItems(items);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-    },
-  });
-}
-
-export function useDeleteInventoryItem() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.deleteInventoryItem(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 }
@@ -77,13 +97,44 @@ export function useDeleteInventoryItem() {
 export function useUpdateInventoryItemQuantity() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async (params: { itemId: string; newQuantity: bigint }) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.updateInventoryItemQuantity(params.itemId, params.newQuantity);
+    mutationFn: async ({ itemId, newQuantity }: { itemId: string; newQuantity: bigint }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.updateInventoryItemQuantity(itemId, newQuantity);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useUpdateAllItems() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (items: InventoryItem[]) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.updateAllItems(items);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useDeleteInventoryItem() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.deleteInventoryItem(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 }
@@ -92,8 +143,9 @@ export function useUpdateInventoryItemQuantity() {
 
 export function useTransactions() {
   const { actor, isFetching } = useActor();
+
   return useQuery<Transaction[]>({
-    queryKey: ["transactions"],
+    queryKey: ['transactions'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllTransactions();
@@ -105,86 +157,27 @@ export function useTransactions() {
 export function useCreateTransaction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (params: {
-      items: Array<{
-        id: string;
-        name: string;
-        price: bigint;
-        quantity: bigint;
-        itemType: ItemKind;
-      }>;
+      items: TransactionItem[];
       total: bigint;
       customerName: string;
+      customerPhone: string;
       vehicleInfo: string;
     }) => {
-      if (!actor) throw new Error("Actor not ready");
+      if (!actor) throw new Error('Actor not available');
       return actor.createTransaction(
         params.items,
         params.total,
         params.customerName,
+        params.customerPhone,
         params.vehicleInfo
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-    },
-  });
-}
-
-export function useDeleteTransaction() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.deleteTransaction(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    },
-  });
-}
-
-// ─── Customers ────────────────────────────────────────────────────────────────
-
-export function useCustomers() {
-  const { actor, isFetching } = useActor();
-  return useQuery<string[]>({
-    queryKey: ["customers"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllCustomers();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAddCustomer() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (customer: string) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.addCustomer(customer);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-    },
-  });
-}
-
-export function useDeleteCustomer() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (customer: string) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.deleteCustomer(customer);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 }
@@ -193,8 +186,9 @@ export function useDeleteCustomer() {
 
 export function useShopSettings() {
   const { actor, isFetching } = useActor();
+
   return useQuery<ShopSettings | null>({
-    queryKey: ["shopSettings"],
+    queryKey: ['shopSettings'],
     queryFn: async () => {
       if (!actor) return null;
       try {
@@ -210,6 +204,7 @@ export function useShopSettings() {
 export function useUpdateShopSettings() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (params: {
       shopName: string;
@@ -217,8 +212,8 @@ export function useUpdateShopSettings() {
       phoneNumber: string;
       thankYouMessage: string;
     }) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.updatePersistentSettings(
+      if (!actor) throw new Error('Actor not available');
+      return actor.updatePersistentSettings(
         params.shopName,
         params.address,
         params.phoneNumber,
@@ -226,7 +221,7 @@ export function useUpdateShopSettings() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shopSettings"] });
+      queryClient.invalidateQueries({ queryKey: ['shopSettings'] });
     },
   });
 }
@@ -234,13 +229,14 @@ export function useUpdateShopSettings() {
 export function useUploadLogo() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (file: ExternalBlob) => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.uploadLogo(file);
+      if (!actor) throw new Error('Actor not available');
+      return actor.uploadLogo(file);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shopSettings"] });
+      queryClient.invalidateQueries({ queryKey: ['shopSettings'] });
     },
   });
 }
@@ -249,8 +245,9 @@ export function useUploadLogo() {
 
 export function useDailyReport(day: bigint | null) {
   const { actor, isFetching } = useActor();
+
   return useQuery<DailyReport | null>({
-    queryKey: ["dailyReport", day?.toString()],
+    queryKey: ['dailyReport', day?.toString()],
     queryFn: async () => {
       if (!actor || day === null) return null;
       return actor.getDailyReport(day);
@@ -261,8 +258,9 @@ export function useDailyReport(day: bigint | null) {
 
 export function useMonthlyReport(month: bigint | null) {
   const { actor, isFetching } = useActor();
+
   return useQuery<MonthlyReport | null>({
-    queryKey: ["monthlyReport", month?.toString()],
+    queryKey: ['monthlyReport', month?.toString()],
     queryFn: async () => {
       if (!actor || month === null) return null;
       return actor.getMonthlyReport(month);
@@ -273,8 +271,9 @@ export function useMonthlyReport(month: bigint | null) {
 
 export function useTopSellingItems(count: bigint) {
   const { actor, isFetching } = useActor();
+
   return useQuery<Array<[string, bigint]>>({
-    queryKey: ["topSellingItems", count.toString()],
+    queryKey: ['topSellingItems', count.toString()],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getTopSellingItems(count);
@@ -285,12 +284,89 @@ export function useTopSellingItems(count: bigint) {
 
 export function useProfitLoss(startTime: bigint | null, endTime: bigint | null) {
   const { actor, isFetching } = useActor();
+
   return useQuery<bigint | null>({
-    queryKey: ["profitLoss", startTime?.toString(), endTime?.toString()],
+    queryKey: ['profitLoss', startTime?.toString(), endTime?.toString()],
     queryFn: async () => {
       if (!actor || startTime === null || endTime === null) return null;
       return actor.calculateProfitLoss(startTime, endTime);
     },
     enabled: !!actor && !isFetching && startTime !== null && endTime !== null,
+  });
+}
+
+// ─── Work Orders ──────────────────────────────────────────────────────────────
+
+export function useWorkOrders() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<WorkOrder[]>({
+    queryKey: ['workOrders'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listWorkOrders();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useCreateWorkOrder() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      customerName: string;
+      customerPhone: string;
+      vehicles: string[];
+      dateIn: bigint;
+      problemDescription: string;
+      repairAction: string;
+      technician: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.createWorkOrder(
+        params.customerName,
+        params.customerPhone,
+        params.vehicles,
+        params.dateIn,
+        params.problemDescription,
+        params.repairAction,
+        params.technician
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workOrders'] });
+    },
+  });
+}
+
+export function useUpdateWorkOrder() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (workOrder: WorkOrder) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.updateWorkOrder(workOrder);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workOrders'] });
+    },
+  });
+}
+
+export function useDeleteWorkOrder() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.deleteWorkOrder(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workOrders'] });
+    },
   });
 }

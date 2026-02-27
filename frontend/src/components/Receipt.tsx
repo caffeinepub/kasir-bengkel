@@ -47,6 +47,12 @@ const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span className="text-muted-foreground">Pelanggan</span>
             <span>{transaction.customerName}</span>
           </div>
+          {transaction.customerPhone && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Nomor HP</span>
+              <span>{transaction.customerPhone}</span>
+            </div>
+          )}
           {transaction.vehicleInfo && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kendaraan</span>

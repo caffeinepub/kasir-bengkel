@@ -1,30 +1,43 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Inventory management project with Axle integration. Features include adding and uploading items to inventory. Latest adjustment: when uploading from Axle, the ID column acts as the key while other columns follow changes made in Axle.",
+  "summary": "Project involves a service/repair management system with work order functionality, cashier page, and inventory page. User reported that the work order button is broken after Version 19 deployment and wants the cashier and inventory pages reverted to Draft Version 15.",
   "architectural_notes": [
-    "Axle upload uses ID column as primary key; other columns follow Axle data changes"
+    "Work order button must function correctly when clicked (broken in Version 19)",
+    "Cashier and inventory pages should match Draft Version 15 as baseline"
   ],
-  "known_issues": [],
-  "isFixRequest": false,
+  "known_issues": [
+    "Work order button not functioning when clicked (regression in Version 19)",
+    "Cashier page and inventory page need to be reverted to Draft Version 15 state"
+  ],
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-when-importing-inventory-items-from-an-axle-exported-excel-file-use-the-id-column-as-the-unique-key-if-an-item-with-the-same-id-already-exists-in-inventory-update-all-other-columns-name-price-stock-category-etc-with-the-values-from-the-uploaded-file-if-no-matching-id-exists-insert-it-as-a-new-item",
-      "title": "When importing inventory items from an Axle-exported Excel file, use the ID column as the unique key: if an item with the same ID already exists in inventory, update all other columns (name, price, stock, category, etc.) with the values from the uploaded file; if no matching ID exists, insert it as a new item.",
+      "id": "feature-fix-the-work-order-button-on-the-service-page-servicepage-tsx-so-that-clicking-it-correctly-opens-the-work-order-detail-or-completion-dialog-the-button-must-be-fully-functional-and-respond-to-click-events-without-errors",
+      "title": "Fix the Work Order button on the Service page (ServicePage.tsx) so that clicking it correctly opens the work order detail or completion dialog. The button must be fully functional and respond to click events without errors.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
-    }
-  ],
-  "new_feature_requests": [
+    },
     {
-      "id": "AR-1",
-      "summary": "When uploading from Axle, use ID column as the key so other columns are updated/overwritten by changes from Axle",
-      "reqIds": [],
-      "status": "pending"
+      "id": "feature-revert-cashierpage-tsx-to-its-draft-version-15-implementation-remove-any-changes-introduced-in-version-16-through-version-19-that-altered-the-cashier-page-s-ui-logic-or-behavior-restoring-it-to-the-stable-version-15-state",
+      "title": "Revert CashierPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the cashier page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-revert-inventorypage-tsx-to-its-draft-version-15-implementation-remove-any-changes-introduced-in-version-16-through-version-19-that-altered-the-inventory-page-s-ui-logic-or-behavior-restoring-it-to-the-stable-version-15-state",
+      "title": "Revert InventoryPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the inventory page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
     }
   ],
+  "new_feature_requests": [],
   "gameProjectType": "none",
   "projectName": "Kasir Bengkel",
   "clarification_mode": "instant",

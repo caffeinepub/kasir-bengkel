@@ -1,23 +1,53 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Upsert by ID on Axle Excel Upload in Inventory",
+  "title": "Fix Work Order Button & Revert Cashier/Inventory Pages to Version 15",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Implement upsert logic for Excel import: use ID column as unique key to update existing items or insert new ones",
+      "summary": "Fix the Work Order button on the Service page so that clicking it correctly opens the work order detail or completion dialog without errors",
       "acceptanceCriteria": [
-        "Uploading an Excel file from Axle where an item's ID already exists in inventory updates that item's other fields (name, price, stock, etc.) without creating a duplicate.",
-        "Uploading an Excel file from Axle where an item's ID does not yet exist in inventory inserts it as a new inventory item.",
-        "Items in the current inventory whose IDs are NOT present in the uploaded Axle file remain unchanged.",
-        "The ID column is treated as case-insensitive or exact-match key (consistent with existing ID format).",
-        "After a successful upsert upload, the inventory table reflects all updated and newly added items immediately."
+        "Clicking the Work Order button on the Service page opens the expected dialog or navigates to the expected view without errors.",
+        "No console errors are thrown when clicking the Work Order button.",
+        "The Work Order button is visually enabled and responds to click events."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/ServicePage.tsx",
+          "operation": "modify",
+          "description": "Fix the Work Order button click handler to properly open the work order detail or completion dialog. Ensure the button's onClick event is correctly wired to the dialog state management (likely opening a completion dialog that navigates to the cashier page with pre-filled customer and vehicle information). Verify that the button is not disabled incorrectly and that all event handlers are properly bound."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Revert CashierPage.tsx to its Draft Version 15 implementation, removing all changes from Version 16-19",
+      "acceptanceCriteria": [
+        "The Cashier page UI and behavior matches the Draft Version 15 state.",
+        "Cart, transaction completion, and receipt printing work as they did in Version 15.",
+        "No Version 16–19 regressions remain on the Cashier page."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/CashierPage.tsx",
+          "operation": "modify",
+          "description": "Revert the entire CashierPage.tsx file to its Draft Version 15 implementation. Remove any UI changes, state management modifications, or behavioral alterations introduced in versions 16 through 19. Restore the Version 15 cart logic, transaction completion flow, customer/vehicle info handling, receipt printing functionality, and any work order navigation data integration that existed in Version 15. Ensure the page uses the urlParams utility functions for reading work order navigation data if that was part of Version 15."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Revert InventoryPage.tsx to its Draft Version 15 implementation, removing all changes from Version 16-19",
+      "acceptanceCriteria": [
+        "The Inventory page UI and behavior matches the Draft Version 15 state.",
+        "Adding, editing, deleting, and bulk importing/exporting inventory items work as they did in Version 15.",
+        "No Version 16–19 regressions remain on the Inventory page."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Modify the Excel import handler to implement upsert logic: when processing uploaded rows, check if each item ID already exists in the current inventory; if it exists, merge/update all other columns (name, sellingPrice, purchasePrice, quantity, kind) with values from the uploaded file; if it does not exist, add it as a new item. Use the existing updateAllItems backend capability to replace the entire inventory with the merged result. Preserve the existing Excel export functionality and manual Add Item dialog unchanged."
+          "description": "Revert the entire InventoryPage.tsx file to its Draft Version 15 implementation. Remove any UI changes, table modifications, dialog alterations, or behavioral changes introduced in versions 16 through 19. Restore the Version 15 inventory management logic including: search functionality, add/edit/delete item dialogs, bulk import/export XLSX operations, and item type filtering (goods vs services). Ensure all Version 15 CRUD operations and validation logic are preserved."
         }
       ]
     }

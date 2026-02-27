@@ -44,6 +44,7 @@ export interface Transaction {
   'customerName' : string,
   'vehicleInfo' : string,
   'total' : bigint,
+  'customerPhone' : string,
   'timestamp' : Time,
   'items' : Array<TransactionItem>,
 }
@@ -54,6 +55,27 @@ export interface TransactionItem {
   'quantity' : bigint,
   'price' : bigint,
 }
+export interface UserProfile { 'name' : string }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
+export interface WorkOrder {
+  'id' : string,
+  'customerName' : string,
+  'status' : WorkOrderStatus,
+  'technician' : string,
+  'vehicles' : Array<string>,
+  'dateOut' : [] | [bigint],
+  'dateIn' : bigint,
+  'customerPhone' : string,
+  'repairAction' : string,
+  'problemDescription' : string,
+  'workOrderNumber' : string,
+}
+export type WorkOrderStatus = { 'cancelled' : null } |
+  { 'pending' : null } |
+  { 'done' : null } |
+  { 'inProgress' : null };
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
@@ -81,36 +103,50 @@ export interface _SERVICE {
     _CaffeineStorageRefillResult
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addCustomer' : ActorMethod<[string], undefined>,
   'addInventoryItem' : ActorMethod<
     [string, string, bigint, bigint, [] | [bigint], ItemKind],
     undefined
   >,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'calculateProfitLoss' : ActorMethod<[Time, Time], bigint>,
   'createTransaction' : ActorMethod<
-    [Array<TransactionItem>, bigint, string, string],
+    [Array<TransactionItem>, bigint, string, string, string],
     bigint
+  >,
+  'createWorkOrder' : ActorMethod<
+    [string, string, Array<string>, bigint, string, string, string],
+    WorkOrder
   >,
   'deleteCustomer' : ActorMethod<[string], undefined>,
   'deleteInventoryItem' : ActorMethod<[string], undefined>,
-  'deleteTransaction' : ActorMethod<[bigint], undefined>,
+  'deleteWorkOrder' : ActorMethod<[string], undefined>,
   'getAllCustomers' : ActorMethod<[], Array<string>>,
   'getAllInventoryItems' : ActorMethod<[], Array<InventoryItem>>,
   'getAllTransactions' : ActorMethod<[], Array<Transaction>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getDailyReport' : ActorMethod<[Time], DailyReport>,
   'getInventoryItem' : ActorMethod<[string], [] | [InventoryItem]>,
   'getMonthlyReport' : ActorMethod<[Time], MonthlyReport>,
-  'getPersistentSettings' : ActorMethod<[], ShopSettings>,
+  'getPersistentSettings' : ActorMethod<[], [] | [ShopSettings]>,
   'getTopSellingItems' : ActorMethod<[bigint], Array<[string, bigint]>>,
   'getTransaction' : ActorMethod<[bigint], [] | [Transaction]>,
   'getTransactionsByCustomer' : ActorMethod<[string], Array<Transaction>>,
   'getTransactionsByMonth' : ActorMethod<[Time], Array<Transaction>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getWorkOrder' : ActorMethod<[string], [] | [WorkOrder]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
+  'listWorkOrders' : ActorMethod<[], Array<WorkOrder>>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'updateAllItems' : ActorMethod<[Array<InventoryItem>], undefined>,
   'updateInventoryItemQuantity' : ActorMethod<[string, bigint], undefined>,
   'updatePersistentSettings' : ActorMethod<
     [string, string, string, string],
     undefined
   >,
+  'updateWorkOrder' : ActorMethod<[WorkOrder], undefined>,
   'uploadLogo' : ActorMethod<[ExternalBlob], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

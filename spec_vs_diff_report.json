@@ -1,17 +1,16 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T05:48:30.980Z",
-  "summary": "The diff implements upsert-by-ID logic for Axle Excel uploads in the inventory page. The frontend InventoryPage.tsx handleImport is updated to use ID as the unique key, updating existing items and inserting new ones, while leaving unaffected items unchanged. A useUpdateAllItems hook and corresponding backend updateAllItems call are added. The implementation appears to cover all acceptance criteria of REQ-1.",
+  "generatedAt": "2026-02-27T07:55:38.217Z",
+  "summary": "The diff modifies CashierPage.tsx, InventoryPage.tsx, and ServicePage.tsx, addressing all three requirements. REQ-1 (fix Work Order button on ServicePage) is addressed with fixes to storeWorkOrderNavData calls and button wiring. REQ-2 (revert CashierPage to V15) and REQ-3 (revert InventoryPage to V15) both have modified files. However, since all files are truncated, it is impossible to fully verify that CashierPage and InventoryPage are truly reverted to Version 15 state versus partially updated. The evidence available is consistent with the requirements being addressed.",
   "missing_requirements": [],
   "hallucinated_features": [],
-  "confidence": 0.85,
+  "confidence": 0.7,
   "changed_files": [
-    "backend/main.mo",
-    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/CashierPage.tsx",
     "frontend/src/pages/InventoryPage.tsx",
+    "frontend/src/pages/ServicePage.tsx",
     "project_state.json"
   ]
 }

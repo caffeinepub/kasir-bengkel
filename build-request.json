@@ -1,39 +1,74 @@
 {
   "kind": "build_request",
-  "title": "Upsert by ID on Axle Excel Upload in Inventory",
+  "title": "Fix Work Order Button & Revert Cashier/Inventory Pages to Version 15",
   "projectName": "Kasir Bengkel",
-  "priority": "normal",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "When importing inventory items from an Axle-exported Excel file, use the ID column as the unique key: if an item with the same ID already exists in inventory, update all other columns (name, price, stock, category, etc.) with the values from the uploaded file; if no matching ID exists, insert it as a new item.",
-      "target": "both",
+      "text": "Fix the Work Order button on the Service page (ServicePage.tsx) so that clicking it correctly opens the work order detail or completion dialog. The button must be fully functional and respond to click events without errors.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "saat upload dari axle untuk kolom ID sebagai kunci sementara kolom yang lain mengikuti perubahan yang dilakukan di axle"
+          "mala jadi tidak berfungsi tombol work order nya saat di klik"
         ]
       },
       "acceptanceCriteria": [
-        "Uploading an Excel file from Axle where an item's ID already exists in inventory updates that item's other fields (name, price, stock, etc.) without creating a duplicate.",
-        "Uploading an Excel file from Axle where an item's ID does not yet exist in inventory inserts it as a new inventory item.",
-        "Items in the current inventory whose IDs are NOT present in the uploaded Axle file remain unchanged.",
-        "The ID column is treated as case-insensitive or exact-match key (consistent with existing ID format).",
-        "After a successful upsert upload, the inventory table reflects all updated and newly added items immediately."
+        "Clicking the Work Order button on the Service page opens the expected dialog or navigates to the expected view without errors.",
+        "No console errors are thrown when clicking the Work Order button.",
+        "The Work Order button is visually enabled and responds to click events."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Revert CashierPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the cashier page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "halaman kasir dan halaman inventory minta dikembalikan seperti draft version 15"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The Cashier page UI and behavior matches the Draft Version 15 state.",
+        "Cart, transaction completion, and receipt printing work as they did in Version 15.",
+        "No Version 16–19 regressions remain on the Cashier page."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Revert InventoryPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the inventory page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "halaman kasir dan halaman inventory minta dikembalikan seperti draft version 15"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The Inventory page UI and behavior matches the Draft Version 15 state.",
+        "Adding, editing, deleting, and bulk importing/exporting inventory items work as they did in Version 15.",
+        "No Version 16–19 regressions remain on the Inventory page."
       ]
     }
   ],
   "constraints": [
-    "Do not change the existing Excel export functionality.",
-    "Do not alter how manual Add Item dialog works — only the Excel import (Axle upload) path is affected.",
-    "Preserve existing stable storage schema; add migration only if backend data structure must change."
+    "Do not modify backend/main.mo unless strictly necessary to support the Version 15 frontend revert.",
+    "Do not alter immutable frontend paths (useInternetIdentity, useActor, main.tsx, components/ui).",
+    "Preserve all Version 19 features on pages other than Cashier and Inventory (e.g., Service page work order completion dialog, technician field, save-and-transaction navigation)."
   ],
   "nonGoals": [
-    "Deleting inventory items that are absent from the uploaded Axle file.",
-    "Changing the Excel file format or column structure expected from Axle.",
-    "Any changes to the Cashier, Transactions, Reports, or Settings pages."
+    "Reverting the Service page (ServicePage.tsx) — only fix the broken Work Order button.",
+    "Reverting TransactionHistoryPage, ReportsPage, SettingsPage, or any other pages.",
+    "Changing the backend data model or stored state.",
+    "Introducing new features beyond the revert and button fix."
   ],
   "imageRequirements": {
     "required": [],
