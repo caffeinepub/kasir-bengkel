@@ -1,23 +1,22 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Minus, Trash2, Search, Printer, ShoppingCart, User, Car } from 'lucide-react';
+import { Plus, Minus, Trash2, Search, Printer, ShoppingCart, User, Car, Package, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Receipt from '@/components/Receipt';
-import { useProducts, useServices, useCreateTransaction, useShopSettings, useCustomers, useAddCustomer, useUpdateProductStock } from '@/hooks/useQueries';
+import { useInventoryItems, useCreateTransaction, useShopSettings, useCustomers, useAddCustomer, useUpdateInventoryQuantity } from '@/hooks/useQueries';
 import { formatRupiah } from '@/lib/utils';
-import type { Transaction, TransactionItem } from '../backend';
-import { ItemType } from '../backend';
+import { ProductType, type Transaction, type TransactionItem } from '../backend';
 
 interface CartItem {
   id: bigint;
   name: string;
   price: bigint;
   quantity: number;
-  itemType: 'service' | 'product';
+  productType: ProductType;
   stock?: number;
 }
 
@@ -31,52 +30,56 @@ export default function CashierPage() {
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const { data: products = [] } = useProducts();
-  const { data: services = [] } = useServices();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const { data: settings } = useShopSettings();
   const { data: customers = [] } = useCustomers();
   const createTransaction = useCreateTransaction();
   const addCustomer = useAddCustomer();
-  const updateStock = useUpdateProductStock();
+  const updateQty = useUpdateInventoryQuantity();
 
-  const allItems = [
-    ...services.map(s => ({ id: s.id, name: s.name, price: s.price, itemType: 'service' as const, stock: undefined })),
-    ...products.map(p => ({ id: p.id, name: p.name, price: p.price, itemType: 'product' as const, stock: Number(p.stock) })),
-  ];
-
-  const filtered = allItems.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = inventoryItems.filter(item =>
+    item.name.toLowerCase().includes(search.toLowerCase()) &&
+    (item.productType === ProductType.service || (item.quantity !== undefined && item.quantity !== null))
   );
 
-  const addToCart = (item: typeof allItems[0]) => {
+  const addToCart = (item: typeof inventoryItems[0]) => {
+    const stock = item.productType === ProductType.goods
+      ? (item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0)
+      : undefined;
+
     setCart(prev => {
-      const existing = prev.find(c => c.id === item.id && c.itemType === item.itemType);
+      const existing = prev.find(c => c.id === item.id);
       if (existing) {
-        if (item.itemType === 'product' && item.stock !== undefined && existing.quantity >= item.stock) {
+        if (item.productType === ProductType.goods && stock !== undefined && existing.quantity >= stock) {
           toast.error('Stok tidak mencukupi');
           return prev;
         }
         return prev.map(c =>
-          c.id === item.id && c.itemType === item.itemType
-            ? { ...c, quantity: c.quantity + 1 }
-            : c
+          c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
         );
       }
-      if (item.itemType === 'product' && item.stock !== undefined && item.stock <= 0) {
+      if (item.productType === ProductType.goods && (stock === undefined || stock <= 0)) {
         toast.error('Stok habis');
         return prev;
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, {
+        id: item.id,
+        name: item.name,
+        price: item.sellingPrice,
+        quantity: 1,
+        productType: item.productType,
+        stock,
+      }];
     });
   };
 
-  const updateQty = (id: bigint, type: string, delta: number) => {
+  const updateCartQty = (id: bigint, delta: number) => {
     setCart(prev => prev
       .map(c => {
-        if (c.id === id && c.itemType === type) {
+        if (c.id === id) {
           const newQty = c.quantity + delta;
           if (newQty <= 0) return null as unknown as CartItem;
-          if (c.itemType === 'product' && c.stock !== undefined && newQty > c.stock) {
+          if (c.productType === ProductType.goods && c.stock !== undefined && newQty > c.stock) {
             toast.error('Stok tidak mencukupi');
             return c;
           }
@@ -88,8 +91,8 @@ export default function CashierPage() {
     );
   };
 
-  const removeFromCart = (id: bigint, type: string) => {
-    setCart(prev => prev.filter(c => !(c.id === id && c.itemType === type)));
+  const removeFromCart = (id: bigint) => {
+    setCart(prev => prev.filter(c => c.id !== id));
   };
 
   const subtotal = cart.reduce((sum, c) => sum + Number(c.price) * c.quantity, 0);
@@ -105,7 +108,7 @@ export default function CashierPage() {
       name: c.name,
       price: c.price,
       quantity: BigInt(c.quantity),
-      itemType: c.itemType === 'service' ? ItemType.service : ItemType.product,
+      itemType: c.productType,
     }));
 
     try {
@@ -116,13 +119,13 @@ export default function CashierPage() {
         vehicleInfo: vehicleInfo.trim(),
       });
 
-      // Update stock for products
+      // Update stock for goods items
       for (const c of cart) {
-        if (c.itemType === 'product') {
-          const product = products.find(p => p.id === c.id);
-          if (product) {
-            const newStock = Number(product.stock) - c.quantity;
-            await updateStock.mutateAsync({ productId: c.id, newStock: BigInt(Math.max(0, newStock)) });
+        if (c.productType === ProductType.goods) {
+          const invItem = inventoryItems.find(i => i.id === c.id);
+          if (invItem && invItem.quantity !== undefined && invItem.quantity !== null) {
+            const newQty = Number(invItem.quantity) - c.quantity;
+            await updateQty.mutateAsync({ itemId: c.id, newQuantity: BigInt(Math.max(0, newQty)) });
           }
         }
       }
@@ -152,7 +155,7 @@ export default function CashierPage() {
     } catch (err) {
       toast.error('Gagal membuat transaksi');
     }
-  }, [cart, customerName, vehicleInfo, total, createTransaction, products, updateStock, addCustomer, customers]);
+  }, [cart, customerName, vehicleInfo, total, createTransaction, inventoryItems, updateQty, addCustomer, customers]);
 
   const filteredCustomers = customers.filter(c =>
     c.toLowerCase().includes(customerName.toLowerCase()) && c !== customerName
@@ -167,17 +170,17 @@ export default function CashierPage() {
         </div>
       )}
 
-      {/* Left: Catalog */}
+      {/* Left: Item Catalog */}
       <div className="flex-1 flex flex-col p-6 border-r border-border">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-foreground mb-1">Kasir</h1>
-          <p className="text-muted-foreground text-sm">Pilih layanan atau produk untuk ditambahkan ke keranjang</p>
+          <p className="text-muted-foreground text-sm">Pilih barang atau jasa untuk ditambahkan ke keranjang</p>
         </div>
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Cari layanan atau produk..."
+            placeholder="Cari barang atau jasa..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9"
@@ -186,30 +189,43 @@ export default function CashierPage() {
 
         <ScrollArea className="flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-2">
-            {filtered.map(item => (
-              <button
-                key={`${item.itemType}-${item.id}`}
-                onClick={() => addToCart(item)}
-                disabled={item.itemType === 'product' && (item.stock ?? 0) <= 0}
-                className="text-left p-3 rounded-xl border border-border bg-card hover:border-brand hover:bg-brand/5 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed group"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-card-foreground truncate">{item.name}</p>
-                    <p className="text-brand font-bold text-sm mt-0.5">{formatRupiah(Number(item.price))}</p>
+            {filtered.map(item => {
+              const stock = item.productType === ProductType.goods
+                ? (item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0)
+                : undefined;
+              const isOutOfStock = item.productType === ProductType.goods && (stock === undefined || stock <= 0);
+
+              return (
+                <button
+                  key={String(item.id)}
+                  onClick={() => addToCart(item)}
+                  disabled={isOutOfStock}
+                  className="text-left p-3 rounded-xl border border-border bg-card hover:border-brand hover:bg-brand/5 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-card-foreground truncate">{item.name}</p>
+                      <p className="text-brand font-bold text-sm mt-0.5">{formatRupiah(Number(item.sellingPrice))}</p>
+                    </div>
+                    <Badge
+                      variant={item.productType === ProductType.service ? 'default' : 'secondary'}
+                      className="text-xs shrink-0 flex items-center gap-1"
+                    >
+                      {item.productType === ProductType.service
+                        ? <><Wrench className="w-3 h-3" /> Jasa</>
+                        : <><Package className="w-3 h-3" /> Barang</>
+                      }
+                    </Badge>
                   </div>
-                  <Badge variant={item.itemType === 'service' ? 'default' : 'secondary'} className="text-xs shrink-0">
-                    {item.itemType === 'service' ? 'Jasa' : 'Produk'}
-                  </Badge>
-                </div>
-                {item.itemType === 'product' && (
-                  <p className="text-xs text-muted-foreground mt-1">Stok: {item.stock}</p>
-                )}
-                <div className="mt-2 flex items-center gap-1 text-xs text-brand opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Plus className="w-3 h-3" /> Tambah
-                </div>
-              </button>
-            ))}
+                  {item.productType === ProductType.goods && (
+                    <p className="text-xs text-muted-foreground mt-1">Stok: {stock}</p>
+                  )}
+                  <div className="mt-2 flex items-center gap-1 text-xs text-brand opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Plus className="w-3 h-3" /> Tambah
+                  </div>
+                </button>
+              );
+            })}
             {filtered.length === 0 && (
               <div className="col-span-3 text-center py-12 text-muted-foreground">
                 <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
@@ -278,20 +294,20 @@ export default function CashierPage() {
           ) : (
             <div className="space-y-2">
               {cart.map(item => (
-                <div key={`${item.itemType}-${item.id}`} className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border">
+                <div key={String(item.id)} className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-brand">{formatRupiah(Number(item.price))}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQty(item.id, item.itemType, -1)}>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateCartQty(item.id, -1)}>
                       <Minus className="w-3 h-3" />
                     </Button>
                     <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQty(item.id, item.itemType, 1)}>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateCartQty(item.id, 1)}>
                       <Plus className="w-3 h-3" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.id, item.itemType)}>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.id)}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
@@ -346,14 +362,5 @@ export default function CashierPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Fix missing import
-function Package(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
-    </svg>
   );
 }

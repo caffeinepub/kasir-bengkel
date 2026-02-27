@@ -6,10 +6,11 @@ import Set "mo:core/Set";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
-
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -17,9 +18,18 @@ actor {
   // Type Definitions //
   //////////////////////
 
-  public type ItemType = {
+  public type ProductType = {
+    #goods;
     #service;
-    #product;
+  };
+
+  public type InventoryItem = {
+    id : Nat;
+    name : Text;
+    sellingPrice : Nat;
+    purchasePrice : Nat;
+    quantity : ?Nat; // null if not applicable (services)
+    productType : ProductType;
   };
 
   public type TransactionItem = {
@@ -27,7 +37,7 @@ actor {
     name : Text;
     price : Nat;
     quantity : Nat;
-    itemType : ItemType;
+    itemType : ProductType;
   };
 
   public type Transaction = {
@@ -65,6 +75,12 @@ actor {
     };
   };
 
+  module InventoryItem {
+    public func compare(item1 : InventoryItem, item2 : InventoryItem) : Order.Order {
+      Nat.compare(item1.id, item2.id);
+    };
+  };
+
   /////////////////
   // STATE       //
   /////////////////
@@ -74,6 +90,7 @@ actor {
 
   let persistentTransactions = Map.empty<Nat, Transaction>();
   let persistentCustomers = Set.empty<Text>();
+  let persistentInventory = Map.empty<Nat, InventoryItem>();
 
   /////////////////////////////////
   // SHOP SETTINGS MANAGEMENT    //
@@ -127,107 +144,69 @@ actor {
   };
 
   /////////////////////////////////
-  // PRODUCT & SERVICE MANAGEMENT //
+  // INVENTORY MANAGEMENT        //
   /////////////////////////////////
 
-  public type Product = {
-    id : Nat;
-    name : Text;
-    price : Nat;
-    stock : Nat;
-  };
-
-  public type Service = {
-    id : Nat;
-    name : Text;
-    price : Nat;
-    description : Text;
-  };
-
-  module Product {
-    public func compare(product1 : Product, product2 : Product) : Order.Order {
-      Nat.compare(product1.id, product2.id);
-    };
-  };
-
-  module Service {
-    public func compare(service1 : Service, service2 : Service) : Order.Order {
-      Nat.compare(service1.id, service2.id);
-    };
-  };
-
-  // PERSISTENT STORAGE
-  let persistentProducts = Map.empty<Nat, Product>();
-  let persistentServices = Map.empty<Nat, Service>();
-
-  public shared ({ caller }) func addProduct(id : Nat, name : Text, price : Nat, stock : Nat) : async () {
+  public shared ({ caller }) func addInventoryItem(id : Nat, name : Text, sellingPrice : Nat, purchasePrice : Nat, quantity : ?Nat, productType : ProductType) : async () {
     if (name == "") {
       Runtime.trap("Name cannot be empty");
     };
 
-    if (stock == 0) {
-      Runtime.trap("Stock must be greater than 0");
-    };
-
-    if (persistentProducts.containsKey(id)) {
+    if (persistentInventory.containsKey(id)) {
       Runtime.trap("ID " # id.toText() # " already exists.");
     };
 
-    let product : Product = {
+    switch (productType) {
+      case (#goods) {
+        switch (quantity) {
+          case (null) { Runtime.trap("Quantity required for goods") };
+          case (?q) {
+            if (q == 0) { Runtime.trap("Quantity must be greater than 0") };
+          };
+        };
+      };
+      case (#service) {
+        if (quantity != null) { Runtime.trap("Quantity should not be provided for services") };
+      };
+    };
+
+    let item : InventoryItem = {
       id;
       name;
-      price;
-      stock;
+      sellingPrice;
+      purchasePrice;
+      quantity;
+      productType;
     };
 
-    persistentProducts.add(id, product);
+    persistentInventory.add(id, item);
   };
 
-  public shared ({ caller }) func addService(id : Nat, name : Text, price : Nat, description : Text) : async () {
-    if (name == "") {
-      Runtime.trap("Name cannot be empty");
-    };
-
-    if (persistentServices.containsKey(id)) {
-      Runtime.trap("ID " # id.toText() # " already exists.");
-    };
-
-    let service : Service = {
-      id;
-      name;
-      price;
-      description;
-    };
-
-    persistentServices.add(id, service);
-  };
-
-  public shared ({ caller }) func updateProductStock(productId : Nat, newStock : Nat) : async () {
-    switch (persistentProducts.get(productId)) {
-      case (null) { Runtime.trap("Product not found") };
-      case (?product) {
-        let updatedProduct = { product with stock = newStock };
-        persistentProducts.add(productId, updatedProduct);
+  public shared ({ caller }) func updateInventoryItemQuantity(itemId : Nat, newQuantity : Nat) : async () {
+    switch (persistentInventory.get(itemId)) {
+      case (null) { Runtime.trap("Inventory item not found") };
+      case (?item) {
+        if (item.productType == #goods) {
+          let updatedItem = { item with quantity = ?newQuantity };
+          persistentInventory.add(itemId, updatedItem);
+        } else {
+          Runtime.trap("Cannot update quantity for services");
+        };
       };
     };
   };
 
-  public shared ({ caller }) func deleteService(id : Nat) : async () {
-    if (not persistentServices.containsKey(id)) { Runtime.trap("Service ID does not exist.") };
-    persistentServices.remove(id);
+  public shared ({ caller }) func deleteInventoryItem(id : Nat) : async () {
+    if (not persistentInventory.containsKey(id)) { Runtime.trap("Inventory item ID does not exist.") };
+    persistentInventory.remove(id);
   };
 
-  public shared ({ caller }) func deleteProduct(id : Nat) : async () {
-    if (not persistentProducts.containsKey(id)) { Runtime.trap("Product ID does not exist.") };
-    persistentProducts.remove(id);
+  public query ({ caller }) func getAllInventoryItems() : async [InventoryItem] {
+    persistentInventory.values().toArray().sort();
   };
 
-  public query ({ caller }) func getAllProducts() : async [Product] {
-    persistentProducts.values().toArray().sort();
-  };
-
-  public query ({ caller }) func getAllServices() : async [Service] {
-    persistentServices.values().toArray().sort();
+  public query ({ caller }) func getInventoryItem(id : Nat) : async ?InventoryItem {
+    persistentInventory.get(id);
   };
 
   /////////////////////////////////
@@ -372,6 +351,29 @@ actor {
     } else { count };
 
     sorted.sliceToArray(0, takeCount);
+  };
+
+  public query ({ caller }) func calculateProfitLoss(startTime : Time.Time, endTime : Time.Time) : async Nat {
+    var totalProfit : Nat = 0;
+
+    let transactions = persistentTransactions.values().toArray().sort();
+
+    for (transaction in transactions.values()) {
+      if (transaction.timestamp >= startTime and transaction.timestamp <= endTime) {
+        for (item in transaction.items.values()) {
+          switch (persistentInventory.get(item.id)) {
+            case (?inventoryItem) {
+              if (inventoryItem.sellingPrice >= inventoryItem.purchasePrice) {
+                totalProfit += (inventoryItem.sellingPrice - inventoryItem.purchasePrice) * item.quantity;
+              };
+            };
+            case (null) {};
+          };
+        };
+      };
+    };
+
+    totalProfit;
   };
 
   /////////////////////

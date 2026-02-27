@@ -1,14 +1,15 @@
 {
-  "frontend/src/App.tsx": "Main app with TanStack Router setup, dark theme provider, persistent sidebar layout, and routes for all 5 pages (Cashier, Catalog, Transactions, Reports, Settings).",
-  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend operations: shop settings, products, services, transactions, customers, and reports (daily/monthly/top-selling).",
-  "frontend/src/components/Sidebar.tsx": "Dark navy sidebar with orange-amber active states, navigation links with icons for all pages, and caffeine.ai attribution footer.",
+  "frontend/src/App.tsx": "Main app with TanStack Router, dark theme provider, and routes for all 5 pages — updated to use `/inventory` route and `InventoryPage` component instead of the old `CatalogPage`.",
+  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend operations — fully rewritten to use the new unified inventory API (`useInventoryItems`, `useAddInventoryItem`, `useDeleteInventoryItem`, `useUpdateInventoryQuantity`) replacing old separate product/service hooks, and added `useProfitLoss` hook.",
+  "frontend/src/components/Sidebar.tsx": "Dark navy sidebar with navigation links — updated the Katalog link to read \"Inventory\" and point to `/inventory`.",
   "frontend/src/components/Receipt.tsx": "Print-friendly receipt component showing shop logo, info, transaction details, itemized list, total, and thank-you message; uses forwardRef for print targeting.",
   "frontend/src/lib/utils.ts": "Utility functions: cn (class merging), formatRupiah (IDR currency), formatDateTime/formatDate (Indonesian locale), and timestamp conversion helpers.",
-  "frontend/src/pages/CashierPage.tsx": "Full POS cashier page with catalog search, cart management, customer/vehicle info, discount input, real-time total, and automatic receipt printing via window.print() on checkout.",
+  "frontend/src/pages/CashierPage.tsx": "POS cashier page updated to use the new unified inventory API — uses `useInventoryItems` and `sellingPrice` for pricing, `ProductType` enum for item type, and `useUpdateInventoryQuantity` for stock deduction.",
   "frontend/src/pages/CatalogPage.tsx": "Catalog management page with tabbed Products/Services views, add/edit/delete dialogs, stock badges, and search filtering.",
   "frontend/src/pages/TransactionHistoryPage.tsx": "Transaction history with search, date range filter, detail dialog, reprint functionality, and delete with confirmation.",
-  "frontend/src/pages/ReportsPage.tsx": "Reports page with daily/monthly revenue stats and top-10 selling items leaderboard with gold/silver/bronze rank indicators.",
+  "frontend/src/pages/ReportsPage.tsx": "Reports page with daily/monthly/top-selling tabs — added a new \"Laba Rugi\" (Profit/Loss) tab with date range picker that calls `useProfitLoss` and displays gross profit in IDR format.",
   "frontend/src/pages/SettingsPage.tsx": "Shop settings page with logo upload (ExternalBlob with progress), shop name/address/phone/thank-you message fields, and save confirmation.",
   "frontend/src/index.css": "OKLCH design system with dark navy sidebar, orange-amber brand color, Inter/Roboto Condensed fonts, and comprehensive @media print rules for receipt-only printing.",
-  "frontend/tailwind.config.js": "Extended Tailwind config with brand color tokens, Inter/Roboto Condensed font families, and custom shadow utilities."
+  "frontend/tailwind.config.js": "Extended Tailwind config with brand color tokens, Inter/Roboto Condensed font families, and custom shadow utilities.",
+  "frontend/src/pages/InventoryPage.tsx": "New Inventory management page (renamed from CatalogPage) with a unified item list showing both goods and services, add/edit dialog with Barang/Jasa type selector, harga beli/jual fields, conditional qty field (hidden for services), and margin preview."
 }

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import { ExternalBlob, type TransactionItem, type ShopSettings, type Product, type Service, type Transaction } from '../backend';
+import { ExternalBlob, ProductType, type TransactionItem, type ShopSettings, type InventoryItem, type Transaction } from '../backend';
 
 // ─── Shop Settings ───────────────────────────────────────────────────────────
 
@@ -44,91 +44,67 @@ export function useUploadLogo() {
   });
 }
 
-// ─── Products ────────────────────────────────────────────────────────────────
+// ─── Inventory ────────────────────────────────────────────────────────────────
 
-export function useProducts() {
+export function useInventoryItems() {
   const { actor, isFetching } = useActor();
-  return useQuery<Product[]>({
-    queryKey: ['products'],
+  return useQuery<InventoryItem[]>({
+    queryKey: ['inventory'],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllProducts();
+      return actor.getAllInventoryItems();
     },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useAddProduct() {
+export function useAddInventoryItem() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { id: bigint; name: string; price: bigint; stock: bigint }) => {
+    mutationFn: async (data: {
+      id: bigint;
+      name: string;
+      sellingPrice: bigint;
+      purchasePrice: bigint;
+      quantity: bigint | null;
+      productType: ProductType;
+    }) => {
       if (!actor) throw new Error('Actor not ready');
-      await actor.addProduct(data.id, data.name, data.price, data.stock);
+      await actor.addInventoryItem(
+        data.id,
+        data.name,
+        data.sellingPrice,
+        data.purchasePrice,
+        data.quantity,
+        data.productType
+      );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
   });
 }
 
-export function useUpdateProductStock() {
+export function useUpdateInventoryQuantity() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { productId: bigint; newStock: bigint }) => {
+    mutationFn: async (data: { itemId: bigint; newQuantity: bigint }) => {
       if (!actor) throw new Error('Actor not ready');
-      await actor.updateProductStock(data.productId, data.newStock);
+      await actor.updateInventoryItemQuantity(data.itemId, data.newQuantity);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
   });
 }
 
-export function useDeleteProduct() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not ready');
-      await actor.deleteProduct(id);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  });
-}
-
-// ─── Services ────────────────────────────────────────────────────────────────
-
-export function useServices() {
-  const { actor, isFetching } = useActor();
-  return useQuery<Service[]>({
-    queryKey: ['services'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllServices();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAddService() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: { id: bigint; name: string; price: bigint; description: string }) => {
-      if (!actor) throw new Error('Actor not ready');
-      await actor.addService(data.id, data.name, data.price, data.description);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
-  });
-}
-
-export function useDeleteService() {
+export function useDeleteInventoryItem() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error('Actor not ready');
-      await actor.deleteService(id);
+      await actor.deleteInventoryItem(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
   });
 }
 
@@ -156,8 +132,20 @@ export function useCreateTransaction() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
     },
+  });
+}
+
+export function useDeleteTransaction() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error('Actor not ready');
+      await actor.deleteTransaction(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['transactions'] }),
   });
 }
 
@@ -234,5 +222,17 @@ export function useTransactionsByMonth(monthTimestamp: bigint | null) {
       return actor.getTransactionsByMonth(monthTimestamp);
     },
     enabled: !!actor && !isFetching && monthTimestamp !== null,
+  });
+}
+
+export function useProfitLoss(startTime: bigint | null, endTime: bigint | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint | null>({
+    queryKey: ['profitLoss', startTime?.toString(), endTime?.toString()],
+    queryFn: async () => {
+      if (!actor || startTime === null || endTime === null) return null;
+      return actor.calculateProfitLoss(startTime, endTime);
+    },
+    enabled: !!actor && !isFetching && startTime !== null && endTime !== null,
   });
 }

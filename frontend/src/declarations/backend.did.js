@@ -19,30 +19,26 @@ export const _CaffeineStorageRefillResult = IDL.Record({
   'success' : IDL.Opt(IDL.Bool),
   'topped_up_amount' : IDL.Opt(IDL.Nat),
 });
-export const ItemType = IDL.Variant({
+export const ProductType = IDL.Variant({
   'service' : IDL.Null,
-  'product' : IDL.Null,
+  'goods' : IDL.Null,
 });
+export const Time = IDL.Int;
 export const TransactionItem = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
-  'itemType' : ItemType,
+  'itemType' : ProductType,
   'quantity' : IDL.Nat,
   'price' : IDL.Nat,
 });
-export const Product = IDL.Record({
+export const InventoryItem = IDL.Record({
   'id' : IDL.Nat,
+  'purchasePrice' : IDL.Nat,
   'name' : IDL.Text,
-  'stock' : IDL.Nat,
-  'price' : IDL.Nat,
+  'sellingPrice' : IDL.Nat,
+  'productType' : ProductType,
+  'quantity' : IDL.Opt(IDL.Nat),
 });
-export const Service = IDL.Record({
-  'id' : IDL.Nat,
-  'name' : IDL.Text,
-  'description' : IDL.Text,
-  'price' : IDL.Nat,
-});
-export const Time = IDL.Int;
 export const Transaction = IDL.Record({
   'id' : IDL.Nat,
   'customerName' : IDL.Text,
@@ -98,22 +94,25 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   'addCustomer' : IDL.Func([IDL.Text], [], []),
-  'addProduct' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
-  'addService' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Text], [], []),
+  'addInventoryItem' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Opt(IDL.Nat), ProductType],
+      [],
+      [],
+    ),
+  'calculateProfitLoss' : IDL.Func([Time, Time], [IDL.Nat], ['query']),
   'createTransaction' : IDL.Func(
       [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
   'deleteCustomer' : IDL.Func([IDL.Text], [], []),
-  'deleteProduct' : IDL.Func([IDL.Nat], [], []),
-  'deleteService' : IDL.Func([IDL.Nat], [], []),
+  'deleteInventoryItem' : IDL.Func([IDL.Nat], [], []),
   'deleteTransaction' : IDL.Func([IDL.Nat], [], []),
   'getAllCustomers' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-  'getAllProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-  'getAllServices' : IDL.Func([], [IDL.Vec(Service)], ['query']),
+  'getAllInventoryItems' : IDL.Func([], [IDL.Vec(InventoryItem)], ['query']),
   'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
   'getDailyReport' : IDL.Func([Time], [DailyReport], ['query']),
+  'getInventoryItem' : IDL.Func([IDL.Nat], [IDL.Opt(InventoryItem)], ['query']),
   'getMonthlyReport' : IDL.Func([Time], [MonthlyReport], ['query']),
   'getShopSettings' : IDL.Func([], [ShopSettings], ['query']),
   'getTopSellingItems' : IDL.Func(
@@ -132,7 +131,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(Transaction)],
       ['query'],
     ),
-  'updateProductStock' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
+  'updateInventoryItemQuantity' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'updateShopSettings' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [],
@@ -155,27 +154,23 @@ export const idlFactory = ({ IDL }) => {
     'success' : IDL.Opt(IDL.Bool),
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
-  const ItemType = IDL.Variant({ 'service' : IDL.Null, 'product' : IDL.Null });
+  const ProductType = IDL.Variant({ 'service' : IDL.Null, 'goods' : IDL.Null });
+  const Time = IDL.Int;
   const TransactionItem = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
-    'itemType' : ItemType,
+    'itemType' : ProductType,
     'quantity' : IDL.Nat,
     'price' : IDL.Nat,
   });
-  const Product = IDL.Record({
+  const InventoryItem = IDL.Record({
     'id' : IDL.Nat,
+    'purchasePrice' : IDL.Nat,
     'name' : IDL.Text,
-    'stock' : IDL.Nat,
-    'price' : IDL.Nat,
+    'sellingPrice' : IDL.Nat,
+    'productType' : ProductType,
+    'quantity' : IDL.Opt(IDL.Nat),
   });
-  const Service = IDL.Record({
-    'id' : IDL.Nat,
-    'name' : IDL.Text,
-    'description' : IDL.Text,
-    'price' : IDL.Nat,
-  });
-  const Time = IDL.Int;
   const Transaction = IDL.Record({
     'id' : IDL.Nat,
     'customerName' : IDL.Text,
@@ -231,22 +226,29 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     'addCustomer' : IDL.Func([IDL.Text], [], []),
-    'addProduct' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
-    'addService' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Text], [], []),
+    'addInventoryItem' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Opt(IDL.Nat), ProductType],
+        [],
+        [],
+      ),
+    'calculateProfitLoss' : IDL.Func([Time, Time], [IDL.Nat], ['query']),
     'createTransaction' : IDL.Func(
         [IDL.Vec(TransactionItem), IDL.Nat, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
     'deleteCustomer' : IDL.Func([IDL.Text], [], []),
-    'deleteProduct' : IDL.Func([IDL.Nat], [], []),
-    'deleteService' : IDL.Func([IDL.Nat], [], []),
+    'deleteInventoryItem' : IDL.Func([IDL.Nat], [], []),
     'deleteTransaction' : IDL.Func([IDL.Nat], [], []),
     'getAllCustomers' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-    'getAllProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-    'getAllServices' : IDL.Func([], [IDL.Vec(Service)], ['query']),
+    'getAllInventoryItems' : IDL.Func([], [IDL.Vec(InventoryItem)], ['query']),
     'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
     'getDailyReport' : IDL.Func([Time], [DailyReport], ['query']),
+    'getInventoryItem' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Opt(InventoryItem)],
+        ['query'],
+      ),
     'getMonthlyReport' : IDL.Func([Time], [MonthlyReport], ['query']),
     'getShopSettings' : IDL.Func([], [ShopSettings], ['query']),
     'getTopSellingItems' : IDL.Func(
@@ -265,7 +267,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Transaction)],
         ['query'],
       ),
-    'updateProductStock' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
+    'updateInventoryItemQuantity' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'updateShopSettings' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [],

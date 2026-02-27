@@ -16,25 +16,21 @@ export interface DailyReport {
   'transactionCount' : bigint,
 }
 export type ExternalBlob = Uint8Array;
-export type ItemType = { 'service' : null } |
-  { 'product' : null };
+export interface InventoryItem {
+  'id' : bigint,
+  'purchasePrice' : bigint,
+  'name' : string,
+  'sellingPrice' : bigint,
+  'productType' : ProductType,
+  'quantity' : [] | [bigint],
+}
 export interface MonthlyReport {
   'month' : Time,
   'totalRevenue' : bigint,
   'transactionCount' : bigint,
 }
-export interface Product {
-  'id' : bigint,
-  'name' : string,
-  'stock' : bigint,
-  'price' : bigint,
-}
-export interface Service {
-  'id' : bigint,
-  'name' : string,
-  'description' : string,
-  'price' : bigint,
-}
+export type ProductType = { 'service' : null } |
+  { 'goods' : null };
 export interface ShopSettings {
   'logo' : [] | [ExternalBlob],
   'address' : string,
@@ -54,7 +50,7 @@ export interface Transaction {
 export interface TransactionItem {
   'id' : bigint,
   'name' : string,
-  'itemType' : ItemType,
+  'itemType' : ProductType,
   'quantity' : bigint,
   'price' : bigint,
 }
@@ -86,28 +82,30 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   'addCustomer' : ActorMethod<[string], undefined>,
-  'addProduct' : ActorMethod<[bigint, string, bigint, bigint], undefined>,
-  'addService' : ActorMethod<[bigint, string, bigint, string], undefined>,
+  'addInventoryItem' : ActorMethod<
+    [bigint, string, bigint, bigint, [] | [bigint], ProductType],
+    undefined
+  >,
+  'calculateProfitLoss' : ActorMethod<[Time, Time], bigint>,
   'createTransaction' : ActorMethod<
     [Array<TransactionItem>, bigint, string, string],
     bigint
   >,
   'deleteCustomer' : ActorMethod<[string], undefined>,
-  'deleteProduct' : ActorMethod<[bigint], undefined>,
-  'deleteService' : ActorMethod<[bigint], undefined>,
+  'deleteInventoryItem' : ActorMethod<[bigint], undefined>,
   'deleteTransaction' : ActorMethod<[bigint], undefined>,
   'getAllCustomers' : ActorMethod<[], Array<string>>,
-  'getAllProducts' : ActorMethod<[], Array<Product>>,
-  'getAllServices' : ActorMethod<[], Array<Service>>,
+  'getAllInventoryItems' : ActorMethod<[], Array<InventoryItem>>,
   'getAllTransactions' : ActorMethod<[], Array<Transaction>>,
   'getDailyReport' : ActorMethod<[Time], DailyReport>,
+  'getInventoryItem' : ActorMethod<[bigint], [] | [InventoryItem]>,
   'getMonthlyReport' : ActorMethod<[Time], MonthlyReport>,
   'getShopSettings' : ActorMethod<[], ShopSettings>,
   'getTopSellingItems' : ActorMethod<[bigint], Array<[string, bigint]>>,
   'getTransaction' : ActorMethod<[bigint], [] | [Transaction]>,
   'getTransactionsByCustomer' : ActorMethod<[string], Array<Transaction>>,
   'getTransactionsByMonth' : ActorMethod<[Time], Array<Transaction>>,
-  'updateProductStock' : ActorMethod<[bigint, bigint], undefined>,
+  'updateInventoryItemQuantity' : ActorMethod<[bigint, bigint], undefined>,
   'updateShopSettings' : ActorMethod<
     [string, string, string, string],
     undefined

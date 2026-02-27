@@ -1,81 +1,56 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T08:03:36.962Z",
-  "summary": "The diff implements the vast majority of requirements for the Workshop Cashier POS application. All eight requirements are substantially addressed: backend Motoko actor, shop settings, catalog management, cashier/transaction, receipt printing, transaction history, reports, and visual theme. A few specific acceptance criteria appear partially or not fully implemented based on the available diff evidence.",
+  "generatedAt": "2026-02-26T23:53:44.841Z",
+  "summary": "The diff implements most of the required features: renaming Catalog/Katalog to Inventory (REQ-1), adding sellingPrice/purchasePrice fields to the backend and UI (REQ-2), adding a Goods/Service type selector with conditional qty field (REQ-3), and adding a Profit/Loss tab in Reports (REQ-4). However, there are some gaps worth noting.",
   "missing_requirements": [
     {
-      "requirement": "Editing a product/service should update name and price in the backend (not just stock). The CatalogPage edit flow for products only calls updateProductStock, and there is no mutation for updating a product's name or price.",
-      "reason": "The CatalogPage diff shows that when editing a product, only updateStock.mutateAsync is called (updating stock only). No backend function or frontend mutation for updating a product's name/price is visible. Similarly, no updateService mutation is shown for services.",
+      "id": "REQ-2",
+      "requirement": "Edit dialog in Inventory page should allow updating selling price and purchase price fields (not just quantity).",
+      "reason": "In InventoryPage.tsx, the edit flow only calls updateQty.mutateAsync to update quantity for goods items. There is no backend call or UI path to update sellingPrice or purchasePrice on an existing item. The edit dialog pre-fills those fields but does not persist changes to them.",
       "evidence": [
-        "frontend/src/pages/CatalogPage.tsx"
+        "frontend/src/pages/InventoryPage.tsx"
       ]
     },
     {
-      "requirement": "Top-selling items report should be filterable by the selected period (date/month), not just a global top-N list.",
-      "reason": "The ReportsPage calls useTopSellingItems(BigInt(10)) with only a count parameter, with no date/period filter passed. The requirement states top-selling items should be for the selected period.",
+      "id": "REQ-3",
+      "requirement": "Edit dialog should allow changing the item type (Goods/Service) for an existing item.",
+      "reason": "The edit flow in InventoryPage.tsx only updates quantity via updateQty.mutateAsync and does not update productType. The backend also appears to lack an update endpoint for productType based on the diff.",
       "evidence": [
-        "frontend/src/pages/ReportsPage.tsx",
-        "frontend/src/hooks/useQueries.ts"
-      ]
-    },
-    {
-      "id": "REQ-1",
-      "requirement": "Backend exposes queries for daily and monthly sales totals and transaction counts — the backend main.mo is truncated so daily/monthly aggregation query implementations cannot be fully confirmed.",
-      "reason": "The backend file is truncated after product/service management. Daily and monthly report query functions cannot be verified from the diff alone.",
-      "evidence": [
+        "frontend/src/pages/InventoryPage.tsx",
         "backend/main.mo"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Customer management: useCustomers and useAddCustomer hooks, and a customer suggestions/autocomplete feature in the Cashier page.",
-      "reason": "The build request does not mention a customer database, customer list queries, or autocomplete for returning customers. The backend type definitions and CashierPage import these features without any spec basis.",
+      "description": "A dedicated migration module (backend/migration.mo) was added to handle upgrading old actor state to the new unified persistentInventory structure.",
+      "reason": "The build request did not explicitly request a migration module. While preserving existing data is a constraint, the specific implementation via a separate migration.mo file with a formal migration runner was not requested.",
       "evidence": [
-        "frontend/src/pages/CashierPage.tsx",
-        "frontend/src/hooks/useQueries.ts"
+        "backend/migration.mo"
       ]
     },
     {
-      "description": "Delete transaction functionality with confirmation dialog on the Transaction History page.",
-      "reason": "The build request does not mention the ability to delete transactions. The TransactionHistoryPage implements a delete button with AlertDialog confirmation and calls actor.deleteTransaction().",
+      "description": "The InventoryPage displays a margin preview calculation shown inline in the dialog.",
+      "reason": "The frontend-file-summaries.txt mentions margin preview in the InventoryPage description, but this was not requested in any of the four requirements.",
       "evidence": [
-        "frontend/src/pages/TransactionHistoryPage.tsx"
-      ]
-    },
-    {
-      "description": "Internet Identity and authentication integration wrapping the entire application.",
-      "reason": "The build request does not mention Internet Identity, authentication, or ICP-specific identity management. The application wraps everything in InternetIdentityProvider and creates authenticated actors.",
-      "evidence": [
-        "frontend/src/main.tsx",
-        "frontend/src/hooks/useInternetIdentity.ts",
-        "frontend/src/hooks/useActor.ts"
+        "frontend/src/pages/InventoryPage.tsx",
+        "frontend-file-summaries.txt"
       ]
     }
   ],
   "confidence": 0.72,
   "changed_files": [
-    "all_files_summary.json",
     "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/index.css",
-    "frontend/index.html",
     "frontend/src/App.tsx",
-    "frontend/src/components/Receipt.tsx",
     "frontend/src/components/Sidebar.tsx",
-    "frontend/src/hooks/useActor.ts",
-    "frontend/src/hooks/useInternetIdentity.ts",
     "frontend/src/hooks/useQueries.ts",
-    "frontend/src/index.css",
-    "frontend/src/lib/utils.ts",
-    "frontend/src/main.tsx",
     "frontend/src/pages/CashierPage.tsx",
     "frontend/src/pages/CatalogPage.tsx",
+    "frontend/src/pages/InventoryPage.tsx",
     "frontend/src/pages/ReportsPage.tsx",
-    "frontend/src/pages/SettingsPage.tsx",
-    "frontend/src/pages/TransactionHistoryPage.tsx",
-    "frontend/tailwind.config.js",
     "project_state.json"
   ]
 }

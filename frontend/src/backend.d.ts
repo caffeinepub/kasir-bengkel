@@ -14,29 +14,25 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
-export interface Product {
-    id: bigint;
-    name: string;
-    stock: bigint;
-    price: bigint;
-}
 export interface MonthlyReport {
     month: Time;
     totalRevenue: bigint;
     transactionCount: bigint;
 }
+export interface InventoryItem {
+    id: bigint;
+    purchasePrice: bigint;
+    name: string;
+    sellingPrice: bigint;
+    productType: ProductType;
+    quantity?: bigint;
+}
 export type Time = bigint;
 export interface TransactionItem {
     id: bigint;
     name: string;
-    itemType: ItemType;
+    itemType: ProductType;
     quantity: bigint;
-    price: bigint;
-}
-export interface Service {
-    id: bigint;
-    name: string;
-    description: string;
     price: bigint;
 }
 export interface ShopSettings {
@@ -59,31 +55,30 @@ export interface Transaction {
     timestamp: Time;
     items: Array<TransactionItem>;
 }
-export enum ItemType {
+export enum ProductType {
     service = "service",
-    product = "product"
+    goods = "goods"
 }
 export interface backendInterface {
     addCustomer(customer: string): Promise<void>;
-    addProduct(id: bigint, name: string, price: bigint, stock: bigint): Promise<void>;
-    addService(id: bigint, name: string, price: bigint, description: string): Promise<void>;
+    addInventoryItem(id: bigint, name: string, sellingPrice: bigint, purchasePrice: bigint, quantity: bigint | null, productType: ProductType): Promise<void>;
+    calculateProfitLoss(startTime: Time, endTime: Time): Promise<bigint>;
     createTransaction(items: Array<TransactionItem>, total: bigint, customerName: string, vehicleInfo: string): Promise<bigint>;
     deleteCustomer(customer: string): Promise<void>;
-    deleteProduct(id: bigint): Promise<void>;
-    deleteService(id: bigint): Promise<void>;
+    deleteInventoryItem(id: bigint): Promise<void>;
     deleteTransaction(id: bigint): Promise<void>;
     getAllCustomers(): Promise<Array<string>>;
-    getAllProducts(): Promise<Array<Product>>;
-    getAllServices(): Promise<Array<Service>>;
+    getAllInventoryItems(): Promise<Array<InventoryItem>>;
     getAllTransactions(): Promise<Array<Transaction>>;
     getDailyReport(day: Time): Promise<DailyReport>;
+    getInventoryItem(id: bigint): Promise<InventoryItem | null>;
     getMonthlyReport(month: Time): Promise<MonthlyReport>;
     getShopSettings(): Promise<ShopSettings>;
     getTopSellingItems(count: bigint): Promise<Array<[string, bigint]>>;
     getTransaction(id: bigint): Promise<Transaction | null>;
     getTransactionsByCustomer(customer: string): Promise<Array<Transaction>>;
     getTransactionsByMonth(monthTimestamp: Time): Promise<Array<Transaction>>;
-    updateProductStock(productId: bigint, newStock: bigint): Promise<void>;
+    updateInventoryItemQuantity(itemId: bigint, newQuantity: bigint): Promise<void>;
     updateShopSettings(shopName: string, address: string, phoneNumber: string, thankYouMessage: string): Promise<void>;
     uploadLogo(file: ExternalBlob): Promise<void>;
 }

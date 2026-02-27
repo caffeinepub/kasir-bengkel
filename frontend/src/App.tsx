@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/sonner';
 import Sidebar from '@/components/Sidebar';
 import CashierPage from '@/pages/CashierPage';
-import CatalogPage from '@/pages/CatalogPage';
+import InventoryPage from '@/pages/InventoryPage';
 import TransactionHistoryPage from '@/pages/TransactionHistoryPage';
 import ReportsPage from '@/pages/ReportsPage';
 import SettingsPage from '@/pages/SettingsPage';
@@ -22,12 +22,12 @@ function Layout() {
 const rootRoute = createRootRoute({ component: Layout });
 
 const cashierRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: CashierPage });
-const catalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/catalog', component: CatalogPage });
+const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inventory', component: InventoryPage });
 const transactionsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/transactions', component: TransactionHistoryPage });
 const reportsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/reports', component: ReportsPage });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsPage });
 
-const routeTree = rootRoute.addChildren([cashierRoute, catalogRoute, transactionsRoute, reportsRoute, settingsRoute]);
+const routeTree = rootRoute.addChildren([cashierRoute, inventoryRoute, transactionsRoute, reportsRoute, settingsRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {
