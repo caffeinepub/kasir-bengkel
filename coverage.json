@@ -1,35 +1,58 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T01:05:56.352Z",
+  "generatedAt": "2026-02-27T02:41:36.568Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
-    "implemented": 2,
+    "total": 4,
+    "implemented": 4,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "When importing an Excel file in the Inventory page, use the item ID (ID Barang) as the stable key: if a row's ID matches an existing item, update that item's other fields (name, price, stock, etc.) with the values from Excel instead of skipping or duplicating it. Only create a new item if the ID does not match any existing record.",
+        "summary": "Replace the current split Jasa/Barang product grid on the Cashier page with a single unified product display panel that shows a maximum of 10 pinned items at a time.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/InventoryPage.tsx"
+          "frontend/src/pages/CashierPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/InventoryPage.tsx"
+          "frontend/src/pages/CashierPage.tsx"
         ]
       },
       {
         "id": "REQ-2",
-        "summary": "On the Inventory page, rename the 'Impor Excel' button label to 'Unggah' and the 'Ekspor Excel' button label to 'Unduh'.",
+        "summary": "Add a 'Select Displayed Items' management menu/dialog on the Cashier page that allows the user to choose which specific inventory items (up to 10) are pinned and shown in the product panel.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/InventoryPage.tsx"
+          "frontend/src/pages/CashierPage.tsx",
+          "frontend/src/hooks/usePinnedItems.ts"
         ],
         "matchedFiles": [
-          "frontend/src/pages/InventoryPage.tsx"
+          "frontend/src/pages/CashierPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Replace the current separated search inputs (one for goods, one for services) on the Cashier page with a single unified search bar that searches across all inventory items (both goods and services).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/CashierPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/CashierPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Implement a search popup/dropdown on the unified search bar that appears when the user types at least 1–2 characters, showing matching inventory items that are not in the current 10 pinned items. Clicking a result from the popup adds it directly to the cart.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/CashierPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/CashierPage.tsx"
         ]
       }
     ]
@@ -39,8 +62,7 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/InventoryPage.tsx",
+    "frontend/src/pages/CashierPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

@@ -1,42 +1,57 @@
 import Text "mo:core/Text";
 import Map "mo:core/Map";
-import Nat "mo:core/Nat";
 import Array "mo:core/Array";
+import Time "mo:core/Time";
+import Nat "mo:core/Nat";
 import Set "mo:core/Set";
 import Order "mo:core/Order";
-import Time "mo:core/Time";
-import Runtime "mo:core/Runtime";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 
+import Runtime "mo:core/Runtime";
+
+// Apply data migration function on upgrades:
 
 actor {
   include MixinStorage();
 
-  //////////////////////
-  // Type Definitions //
-  //////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////            Types              ////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
-  public type ProductType = {
-    #goods;
+  public type ItemKind = {
     #service;
+    #goods;
+  };
+
+  public type Price = {
+    id : Nat;
+    name : Text;
+    amount : Nat; // price in smallest currency (e.g. cents)
+    description : Text;
+    kind : ItemKind;
   };
 
   public type InventoryItem = {
-    id : Nat;
+    id : Text;
     name : Text;
     sellingPrice : Nat;
     purchasePrice : Nat;
     quantity : ?Nat;
-    productType : ProductType;
+    kind : ItemKind;
   };
 
+  // "barang" -> goods
+  // "jasa" -> services
+  // Backend idea: Use type system to ensure that services don't have quantity. Queries can be "all services", "all goods", etc.
+  // When computing revenue, only count goods that have purchase price.
+
   public type TransactionItem = {
-    id : Nat;
+    id : Text;
     name : Text;
     price : Nat;
     quantity : Nat;
-    itemType : ProductType;
+    itemType : ItemKind;
   };
 
   public type Transaction = {
@@ -74,25 +89,27 @@ actor {
     };
   };
 
-  module InventoryItem {
-    public func compare(item1 : InventoryItem, item2 : InventoryItem) : Order.Order {
-      Nat.compare(item1.id, item2.id);
+  module Price {
+    public func compare(p1 : Price, p2 : Price) : Order.Order {
+      Nat.compare(p1.id, p2.id);
     };
   };
 
-  /////////////////
-  // STATE       //
-  /////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////         State              ///////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
-  var nextTransactionId : Nat = 0;
+  var persistentNextTransactionId = 0;
   var persistentSettings : ?ShopSettings = null;
-  let persistentTransactions = Map.empty<Nat, Transaction>();
-  let persistentCustomers = Set.empty<Text>();
-  let persistentInventory = Map.empty<Nat, InventoryItem>();
 
-  /////////////////////////////////
-  // SHOP SETTINGS MANAGEMENT    //
-  /////////////////////////////////
+  // Maps for persistent storage
+  let persistentCustomers = Set.empty<Text>();
+  let persistentTransactions = Map.empty<Nat, Transaction>();
+  let persistentInventory = Map.empty<Text, InventoryItem>();
+
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Shop Settings      ////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
   public shared ({ caller }) func uploadLogo(file : Storage.ExternalBlob) : async () {
     persistentSettings := switch (persistentSettings) {
@@ -111,7 +128,7 @@ actor {
     };
   };
 
-  public shared ({ caller }) func updateShopSettings(shopName : Text, address : Text, phoneNumber : Text, thankYouMessage : Text) : async () {
+  public shared ({ caller }) func updatePersistentSettings(shopName : Text, address : Text, phoneNumber : Text, thankYouMessage : Text) : async () {
     persistentSettings := switch (persistentSettings) {
       case (null) {
         ?{
@@ -134,27 +151,27 @@ actor {
     };
   };
 
-  public query ({ caller }) func getShopSettings() : async ShopSettings {
+  public query ({ caller }) func getPersistentSettings() : async ShopSettings {
     switch (persistentSettings) {
       case (null) { Runtime.trap("Shop settings not found") };
       case (?settings) { settings };
     };
   };
 
-  /////////////////////////////////
-  // INVENTORY MANAGEMENT        //
-  /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Inventory            //////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
-  public shared ({ caller }) func addInventoryItem(id : Nat, name : Text, sellingPrice : Nat, purchasePrice : Nat, quantity : ?Nat, productType : ProductType) : async () {
+  public shared ({ caller }) func addInventoryItem(id : Text, name : Text, sellingPrice : Nat, purchasePrice : Nat, quantity : ?Nat, kind : ItemKind) : async () {
     if (name == "") {
       Runtime.trap("Name cannot be empty");
     };
 
     if (persistentInventory.containsKey(id)) {
-      Runtime.trap("ID " # id.toText() # " already exists.");
+      Runtime.trap("ID " # id # " already exists.");
     };
 
-    switch (productType) {
+    switch (kind) {
       case (#goods) {
         switch (quantity) {
           case (null) { Runtime.trap("Quantity required for goods") };
@@ -174,17 +191,17 @@ actor {
       sellingPrice;
       purchasePrice;
       quantity;
-      productType;
+      kind;
     };
 
     persistentInventory.add(id, item);
   };
 
-  public shared ({ caller }) func updateInventoryItemQuantity(itemId : Nat, newQuantity : Nat) : async () {
+  public shared ({ caller }) func updateInventoryItemQuantity(itemId : Text, newQuantity : Nat) : async () {
     switch (persistentInventory.get(itemId)) {
       case (null) { Runtime.trap("Inventory item not found") };
       case (?item) {
-        if (item.productType == #goods) {
+        if (item.kind == #goods) {
           let updatedItem = { item with quantity = ?newQuantity };
           persistentInventory.add(itemId, updatedItem);
         } else {
@@ -194,25 +211,26 @@ actor {
     };
   };
 
-  public shared ({ caller }) func deleteInventoryItem(id : Nat) : async () {
+  public shared ({ caller }) func deleteInventoryItem(id : Text) : async () {
     if (not persistentInventory.containsKey(id)) { Runtime.trap("Inventory item ID does not exist.") };
     persistentInventory.remove(id);
   };
 
   public query ({ caller }) func getAllInventoryItems() : async [InventoryItem] {
-    persistentInventory.values().toArray().sort();
+    persistentInventory.values().toArray();
   };
 
-  public query ({ caller }) func getInventoryItem(id : Nat) : async ?InventoryItem {
+  public query ({ caller }) func getInventoryItem(id : Text) : async ?InventoryItem {
     persistentInventory.get(id);
   };
 
-  /////////////////////////////////
-  // TRANSACTION MANAGEMENT      //
-  /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Transactions          /////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+
   public shared ({ caller }) func createTransaction(items : [TransactionItem], total : Nat, customerName : Text, vehicleInfo : Text) : async Nat {
-    let id = nextTransactionId;
-    nextTransactionId += 1;
+    let id = persistentNextTransactionId;
+    persistentNextTransactionId += 1;
 
     let transaction = {
       id;
@@ -237,12 +255,12 @@ actor {
   };
 
   public query ({ caller }) func getAllTransactions() : async [Transaction] {
-    persistentTransactions.values().toArray().sort();
+    persistentTransactions.values().toArray();
   };
 
-  /////////////////////////////////
-  // CUSTOMER MANAGEMENT         //
-  /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Customers              ////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
   public query ({ caller }) func getAllCustomers() : async [Text] {
     persistentCustomers.toArray();
@@ -259,12 +277,12 @@ actor {
     persistentCustomers.remove(customer);
   };
 
-  /////////////////////
-  // REPORTS          //
-  /////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Reports                 ///////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
   public query ({ caller }) func getTransactionsByCustomer(customer : Text) : async [Transaction] {
-    persistentTransactions.values().toArray().sort().filter(
+    persistentTransactions.values().toArray().filter(
       func(transaction) {
         transaction.customerName == customer;
       }
@@ -272,7 +290,7 @@ actor {
   };
 
   public query ({ caller }) func getTransactionsByMonth(monthTimestamp : Time.Time) : async [Transaction] {
-    persistentTransactions.values().toArray().sort().filter(
+    persistentTransactions.values().toArray().filter(
       func(transaction) {
         isSameMonth(transaction.timestamp, monthTimestamp);
       }
@@ -352,7 +370,7 @@ actor {
   public query ({ caller }) func calculateProfitLoss(startTime : Time.Time, endTime : Time.Time) : async Nat {
     var totalProfit : Nat = 0;
 
-    let transactions = persistentTransactions.values().toArray().sort();
+    let transactions = persistentTransactions.values().toArray();
 
     for (transaction in transactions.values()) {
       if (transaction.timestamp >= startTime and transaction.timestamp <= endTime) {
@@ -372,9 +390,9 @@ actor {
     totalProfit;
   };
 
-  /////////////////////
-  // DATE UTILITIES
-  /////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////        Date Utilities         ////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
 
   func isSameMonth(timestamp1 : Time.Time, timestamp2 : Time.Time) : Bool {
     let dt1 = timestamp1 / 1_000_000_000;

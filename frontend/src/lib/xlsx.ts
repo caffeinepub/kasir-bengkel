@@ -397,22 +397,64 @@ function parseXmlDoc(xml: string): Document {
   return new DOMParser().parseFromString(xml, 'application/xml');
 }
 
+/**
+ * Convert a column letter string (e.g. "A", "B", "AA") to a zero-based column index.
+ */
+function colLetterToIndex(col: string): number {
+  let index = 0;
+  for (let i = 0; i < col.length; i++) {
+    index = index * 26 + (col.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+
+/**
+ * Parse a cell reference like "A1", "BC23" into { col: number, row: number }.
+ * col is zero-based, row is one-based.
+ */
+function parseCellRef(ref: string): { col: number; row: number } | null {
+  const match = ref.match(/^([A-Z]+)(\d+)$/);
+  if (!match) return null;
+  return {
+    col: colLetterToIndex(match[1]),
+    row: parseInt(match[2], 10),
+  };
+}
+
+/**
+ * Extract the full text content from a shared string <si> element.
+ * Handles both simple <t> and rich-text <r><t> runs, as well as
+ * xml:space="preserve" whitespace.
+ */
+function extractSiText(siEl: Element): string {
+  // Rich text: concatenate all <r><t> run texts
+  const runs = siEl.querySelectorAll('r > t');
+  if (runs.length > 0) {
+    let text = '';
+    runs.forEach(t => { text += t.textContent ?? ''; });
+    return text;
+  }
+  // Simple: single <t> element
+  const t = siEl.querySelector('t');
+  return t?.textContent ?? '';
+}
+
 export async function readXlsx(buffer: ArrayBuffer): Promise<string[][]> {
   const files = await readZip(buffer);
   const dec = new TextDecoder();
 
-  // Shared strings
+  // ── Shared strings ──────────────────────────────────────────────────────────
+  // Build the shared strings table, handling both simple <t> and rich-text <r><t> runs.
   const sstFile = files.find(f => f.name.includes('sharedStrings'));
   const sharedStrings: string[] = [];
   if (sstFile) {
     const sstDoc = parseXmlDoc(dec.decode(sstFile.data));
     sstDoc.querySelectorAll('si').forEach(si => {
-      const t = si.querySelector('t');
-      sharedStrings.push(t?.textContent ?? '');
+      sharedStrings.push(extractSiText(si));
     });
   }
 
-  // Find sheet1
+  // ── Find the first worksheet ────────────────────────────────────────────────
   const sheetFile = files.find(
     f => f.name.includes('sheet1.xml') || /worksheets\/sheet\d+\.xml/.test(f.name)
   );
@@ -421,17 +463,56 @@ export async function readXlsx(buffer: ArrayBuffer): Promise<string[][]> {
   const sheetDoc = parseXmlDoc(dec.decode(sheetFile.data));
   const rows: string[][] = [];
 
+  // ── Parse rows, placing each cell at its correct column index ───────────────
+  // Excel omits empty cells entirely, so we must use the cell reference (e.g. "C5")
+  // to determine the correct column position rather than relying on sequential order.
   sheetDoc.querySelectorAll('row').forEach(rowEl => {
-    const cells: string[] = [];
-    rowEl.querySelectorAll('c').forEach(cell => {
+    const cellEls = rowEl.querySelectorAll('c');
+    if (cellEls.length === 0) return;
+
+    // Determine the maximum column index in this row so we can size the array
+    let maxCol = 0;
+    cellEls.forEach(cell => {
+      const ref = cell.getAttribute('r') ?? '';
+      const parsed = parseCellRef(ref);
+      if (parsed && parsed.col > maxCol) maxCol = parsed.col;
+    });
+
+    // Pre-fill with empty strings
+    const cells: string[] = new Array(maxCol + 1).fill('');
+
+    cellEls.forEach(cell => {
+      const ref = cell.getAttribute('r') ?? '';
+      const parsed = parseCellRef(ref);
+      if (!parsed) return;
+
+      const colIdx = parsed.col;
       const t = cell.getAttribute('t');
       const v = cell.querySelector('v')?.textContent ?? '';
+
       if (t === 's') {
-        cells.push(sharedStrings[parseInt(v)] ?? '');
+        // Shared string reference
+        cells[colIdx] = sharedStrings[parseInt(v, 10)] ?? '';
+      } else if (t === 'inlineStr') {
+        // Inline string (used by some Excel versions for newly typed cells)
+        const isEl = cell.querySelector('is');
+        if (isEl) {
+          cells[colIdx] = extractSiText(isEl);
+        } else {
+          cells[colIdx] = v;
+        }
+      } else if (t === 'b') {
+        // Boolean
+        cells[colIdx] = v === '1' ? 'TRUE' : 'FALSE';
+      } else if (t === 'str') {
+        // Formula result string
+        cells[colIdx] = v;
       } else {
-        cells.push(v);
+        // Numeric or date value
+        cells[colIdx] = v;
       }
     });
+
     rows.push(cells);
   });
 

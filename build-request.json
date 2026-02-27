@@ -1,55 +1,97 @@
 {
   "kind": "build_request",
-  "title": "Fix Excel re-import to update records by item ID, rename import/export buttons",
+  "title": "Cashier: Max 10 Pinned Items with Selection Menu + Unified Search with Popup Suggestions",
   "projectName": "Kasir Bengkel",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "When importing an Excel file in the Inventory page, use the item ID (ID Barang) as the stable key: if a row's ID matches an existing item, update that item's other fields (name, price, stock, etc.) with the values from Excel instead of skipping or duplicating it. Only create a new item if the ID does not match any existing record.",
+      "text": "Replace the current split Jasa/Barang product grid on the Cashier page with a single unified product display panel that shows a maximum of 10 pinned items at a time.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-5"
+          "msg-latest"
         ],
         "quotes": [
-          "saat mengimpor kembali ke aplikasi, data yang di edit di exle tidak berubah di aplikasi, mungkin bisa ID barang sebagai ID yg baku dan data yang lainya bisa berubah sesuai perubahan di excel"
+          "yang ditampilkan hanya beberapa saja, maximal 10"
         ]
       },
       "acceptanceCriteria": [
-        "Downloading the inventory as Excel, editing a row's name or price in Excel, then re-uploading the file causes the corresponding item in the app to reflect the edited values.",
-        "An item whose ID exists in both the app and the Excel file is updated, not duplicated.",
-        "A row in Excel with an ID not found in the app is added as a new item.",
-        "Items in the app that have no matching row in the uploaded Excel file remain unchanged."
+        "The cashier product panel displays at most 10 items simultaneously",
+        "Items are no longer split into separate Jasa and Barang columns/sections",
+        "All 10 displayed items are clickable to add to the cart as before"
       ]
     },
     {
       "id": "REQ-2",
-      "text": "On the Inventory page, rename the 'Impor Excel' button label to 'Unggah' and the 'Ekspor Excel' button label to 'Unduh'.",
+      "text": "Add a 'Select Displayed Items' management menu/dialog on the Cashier page that allows the user to choose which specific inventory items (up to 10) are pinned and shown in the product panel.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-5"
+          "msg-latest"
         ],
         "quotes": [
-          "untuk tombol Impor excel dan expor excel diganti unggah dan unduh saja"
+          "dibuatkan menu pilihan barang yang mana yang akan ditampilkan"
         ]
       },
       "acceptanceCriteria": [
-        "The button previously labeled 'Impor Excel' now displays 'Unggah'.",
-        "The button previously labeled 'Ekspor Excel' now displays 'Unduh'.",
-        "Both buttons retain their existing functionality."
+        "A button or gear icon opens a dialog/drawer listing all inventory items",
+        "User can select/deselect items to pin; selection is capped at 10",
+        "Selecting more than 10 items is prevented with a clear message",
+        "Saving the selection updates the product panel immediately",
+        "The selected pinned items persist across page reloads (stored in localStorage or backend settings)"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Replace the current separated search inputs (one for goods, one for services) on the Cashier page with a single unified search bar that searches across all inventory items (both goods and services).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-latest"
+        ],
+        "quotes": [
+          "untuk kolom pencarian 1 aja tidak usah dipisah antara barang dan jasa"
+        ]
+      },
+      "acceptanceCriteria": [
+        "There is exactly one search input field on the cashier page",
+        "The search queries across all inventory items regardless of type (barang or jasa)",
+        "The existing separate search inputs for goods and services are removed"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Implement a search popup/dropdown on the unified search bar that appears when the user types at least 1–2 characters, showing matching inventory items that are not in the current 10 pinned items. Clicking a result from the popup adds it directly to the cart.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-latest"
+        ],
+        "quotes": [
+          "untuk yang lainya akan pop up ketika diketik beberapa huruf di kolom pencarian"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Typing in the search bar triggers a dropdown popup showing matching items filtered by name",
+        "The popup appears after at least 1 character is typed",
+        "Search results include items from both goods and services categories",
+        "Items already displayed in the 10-item pinned panel can also appear in search results",
+        "Clicking a search result item adds it to the cart and clears the search input",
+        "The popup closes when the search input is cleared or focus is lost"
       ]
     }
   ],
   "constraints": [
-    "Item ID must be treated as the immutable primary key during Excel import matching.",
-    "Do not change the backend data schema or item ID generation logic."
+    "Do not modify files under frontend/src/hooks/ (useActor.ts, useInternetIdentity.ts) or frontend/src/components/ui/",
+    "Cart functionality and checkout flow must remain unchanged",
+    "Backend API must not be changed unless strictly necessary for persisting the pinned item selection"
   ],
   "nonGoals": [
-    "Changing any other page besides the Inventory page.",
-    "Modifying the Excel file format or column structure.",
-    "Adding new columns or fields to the exported Excel file."
+    "Changing the inventory management page layout",
+    "Modifying the receipt or transaction history pages",
+    "Adding real-time search (debounced local filtering is sufficient)",
+    "Persisting the pinned selection to the backend (localStorage is acceptable)"
   ],
   "imageRequirements": {
     "required": [],

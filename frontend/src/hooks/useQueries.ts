@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import { ExternalBlob, ProductType, type TransactionItem, type ShopSettings, type InventoryItem, type Transaction } from '../backend';
+import { ExternalBlob, ItemKind, type TransactionItem, type ShopSettings, type InventoryItem, type Transaction } from '../backend';
 
 // ─── Shop Settings ───────────────────────────────────────────────────────────
 
@@ -11,7 +11,7 @@ export function useShopSettings() {
     queryFn: async () => {
       if (!actor) return null;
       try {
-        return await actor.getShopSettings();
+        return await actor.getPersistentSettings();
       } catch {
         return null;
       }
@@ -26,7 +26,7 @@ export function useUpdateShopSettings() {
   return useMutation({
     mutationFn: async (data: { shopName: string; address: string; phoneNumber: string; thankYouMessage: string }) => {
       if (!actor) throw new Error('Actor not ready');
-      await actor.updateShopSettings(data.shopName, data.address, data.phoneNumber, data.thankYouMessage);
+      await actor.updatePersistentSettings(data.shopName, data.address, data.phoneNumber, data.thankYouMessage);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopSettings'] }),
   });
@@ -63,12 +63,12 @@ export function useAddInventoryItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      id: bigint;
+      id: string;
       name: string;
       sellingPrice: bigint;
       purchasePrice: bigint;
       quantity: bigint | null;
-      productType: ProductType;
+      kind: ItemKind;
     }) => {
       if (!actor) throw new Error('Actor not ready');
       await actor.addInventoryItem(
@@ -77,7 +77,7 @@ export function useAddInventoryItem() {
         data.sellingPrice,
         data.purchasePrice,
         data.quantity,
-        data.productType
+        data.kind
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
@@ -89,12 +89,12 @@ export function useReplaceInventoryItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      id: bigint;
+      id: string;
       name: string;
       sellingPrice: bigint;
       purchasePrice: bigint;
       quantity: bigint | null;
-      productType: ProductType;
+      kind: ItemKind;
     }) => {
       if (!actor) throw new Error('Actor not ready');
       // Delete existing then re-add with updated data
@@ -105,7 +105,7 @@ export function useReplaceInventoryItem() {
         data.sellingPrice,
         data.purchasePrice,
         data.quantity,
-        data.productType
+        data.kind
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
@@ -116,7 +116,7 @@ export function useUpdateInventoryQuantity() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { itemId: bigint; newQuantity: bigint }) => {
+    mutationFn: async (data: { itemId: string; newQuantity: bigint }) => {
       if (!actor) throw new Error('Actor not ready');
       await actor.updateInventoryItemQuantity(data.itemId, data.newQuantity);
     },
@@ -128,7 +128,7 @@ export function useDeleteInventoryItem() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: bigint) => {
+    mutationFn: async (id: string) => {
       if (!actor) throw new Error('Actor not ready');
       await actor.deleteInventoryItem(id);
     },

@@ -1,11 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Fix Excel re-import on the Inventory page to update existing items by ID instead of duplicating them, and rename the import/export buttons to simpler labels.
+**Goal:** Redesign the Cashier page product panel to show a unified, configurable set of up to 10 pinned items, and replace the split search inputs with a single unified search bar that shows popup suggestions.
 
 **Planned changes:**
-- When importing an Excel file, match rows against existing items using the item ID (ID Barang) as the primary key; update matching items with the new field values from Excel instead of skipping or duplicating them
-- Rows in Excel with an ID not found in the app are added as new items; items not present in the Excel file remain unchanged
-- Rename the "Impor Excel" button to "Unggah" and the "Ekspor Excel" button to "Unduh" on the Inventory page
+- Replace the split Jasa/Barang product grid with a single unified panel showing at most 10 pinned items at a time
+- Add a "Select Displayed Items" button/dialog that lets the user pick which inventory items (up to 10) are pinned; selection is persisted in localStorage
+- Remove the separate Jasa and Barang search inputs and replace them with one unified search bar that queries all inventory items
+- Add a dropdown popup on the unified search bar that appears after typing 1+ characters, showing matching items; clicking a result adds it to the cart
 
-**User-visible outcome:** Users can export inventory to Excel, edit names/prices/stock in the file, re-import it, and see the changes reflected in the app. The import and export buttons are labeled "Unggah" and "Unduh" respectively.
+**User-visible outcome:** On the Cashier page, users see a single compact product panel with up to 10 user-chosen pinned items, a gear/settings button to manage which items are pinned, and one search bar with live popup suggestions for quickly adding any inventory item to the cart.

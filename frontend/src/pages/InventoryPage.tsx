@@ -1,5 +1,8 @@
 import { useState, useRef } from 'react';
-import { Plus, Search, Pencil, Trash2, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  Plus, Search, Pencil, Trash2, Download, Upload, FileSpreadsheet,
+  Loader2, AlertCircle, CheckCircle2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import {
   useInventoryItems,
@@ -29,7 +32,7 @@ import {
   useUpdateInventoryQuantity,
   useReplaceInventoryItem,
 } from '@/hooks/useQueries';
-import { ProductType, type InventoryItem } from '@/backend';
+import { ItemKind, type InventoryItem } from '@/backend';
 import { formatRupiah } from '@/lib/utils';
 import { buildXlsx, readXlsx } from '@/lib/xlsx';
 
@@ -39,7 +42,7 @@ interface ItemForm {
   sellingPrice: string;
   purchasePrice: string;
   quantity: string;
-  productType: ProductType;
+  kind: ItemKind;
 }
 
 const emptyForm = (): ItemForm => ({
@@ -48,8 +51,13 @@ const emptyForm = (): ItemForm => ({
   sellingPrice: '',
   purchasePrice: '',
   quantity: '',
-  productType: ProductType.goods,
+  kind: ItemKind.goods,
 });
+
+/** Sanitize input to uppercase alphanumeric only (A-Z, 0-9) */
+function toAlphanumericUpper(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
 
 export default function InventoryPage() {
   const { data: items = [], isLoading } = useInventoryItems();
@@ -79,19 +87,21 @@ export default function InventoryPage() {
   const filtered = items.filter(
     (item) =>
       item.name.toLowerCase().includes(search.toLowerCase()) ||
-      String(item.id).includes(search)
+      item.id.toLowerCase().includes(search.toLowerCase())
   );
 
   // ── Validation ──────────────────────────────────────────────────────────────
   function validateForm(f: ItemForm): boolean {
     const errors: Partial<ItemForm> = {};
-    if (!f.id || isNaN(Number(f.id)) || Number(f.id) < 0) errors.id = 'ID harus berupa angka positif';
+    if (!f.id || !/^[A-Z0-9]+$/.test(f.id)) {
+      errors.id = 'ID harus berupa huruf besar dan/atau angka (contoh: A001, BRG01)';
+    }
     if (!f.name.trim()) errors.name = 'Nama tidak boleh kosong';
     if (!f.sellingPrice || isNaN(Number(f.sellingPrice)) || Number(f.sellingPrice) < 0)
       errors.sellingPrice = 'Harga jual tidak valid';
     if (!f.purchasePrice || isNaN(Number(f.purchasePrice)) || Number(f.purchasePrice) < 0)
       errors.purchasePrice = 'Harga beli tidak valid';
-    if (f.productType === ProductType.goods) {
+    if (f.kind === ItemKind.goods) {
       if (!f.quantity || isNaN(Number(f.quantity)) || Number(f.quantity) <= 0)
         errors.quantity = 'Stok harus lebih dari 0';
     }
@@ -104,12 +114,12 @@ export default function InventoryPage() {
     if (!validateForm(form)) return;
     try {
       await addItem.mutateAsync({
-        id: BigInt(form.id),
+        id: form.id,
         name: form.name.trim(),
         sellingPrice: BigInt(form.sellingPrice),
         purchasePrice: BigInt(form.purchasePrice),
-        quantity: form.productType === ProductType.goods ? BigInt(form.quantity) : null,
-        productType: form.productType,
+        quantity: form.kind === ItemKind.goods ? BigInt(form.quantity) : null,
+        kind: form.kind,
       });
       toast.success('Barang berhasil ditambahkan');
       setShowAddDialog(false);
@@ -125,7 +135,7 @@ export default function InventoryPage() {
     }
   }
 
-  // ── Edit (quantity only) ─────────────────────────────────────────────────────
+  // ── Edit ─────────────────────────────────────────────────────────────────────
   function openEdit(item: InventoryItem) {
     setSelectedItem(item);
     setForm({
@@ -134,7 +144,7 @@ export default function InventoryPage() {
       sellingPrice: String(item.sellingPrice),
       purchasePrice: String(item.purchasePrice),
       quantity: item.quantity !== undefined && item.quantity !== null ? String(item.quantity) : '',
-      productType: item.productType,
+      kind: item.kind,
     });
     setFormErrors({});
     setShowEditDialog(true);
@@ -142,7 +152,7 @@ export default function InventoryPage() {
 
   async function handleEdit() {
     if (!selectedItem) return;
-    if (selectedItem.productType === ProductType.goods) {
+    if (selectedItem.kind === ItemKind.goods) {
       if (!form.quantity || isNaN(Number(form.quantity)) || Number(form.quantity) < 0) {
         setFormErrors({ quantity: 'Stok tidak valid' });
         return;
@@ -185,10 +195,10 @@ export default function InventoryPage() {
   async function handleExport() {
     const headers = ['ID', 'Nama', 'Tipe', 'Stok', 'Harga Beli', 'Harga Jual'];
     const rows = items.map((item) => [
-      Number(item.id),
+      item.id,
       item.name,
-      item.productType === ProductType.goods ? 'Barang' : 'Jasa',
-      item.productType === ProductType.goods && item.quantity !== undefined && item.quantity !== null
+      item.kind === ItemKind.goods ? 'Barang' : 'Jasa',
+      item.kind === ItemKind.goods && item.quantity !== undefined && item.quantity !== null
         ? Number(item.quantity)
         : '',
       Number(item.purchasePrice),
@@ -215,8 +225,8 @@ export default function InventoryPage() {
   async function handleDownloadTemplate() {
     const headers = ['ID', 'Nama', 'Tipe', 'Stok', 'Harga Beli', 'Harga Jual'];
     const rows = [
-      [1, 'Contoh Barang', 'Barang', 10, 50000, 75000],
-      [2, 'Contoh Jasa', 'Jasa', '', 0, 100000],
+      ['BRG001', 'Contoh Barang', 'Barang', 10, 50000, 75000],
+      ['JSA001', 'Contoh Jasa', 'Jasa', '', 0, 100000],
     ];
     try {
       const xlsxBytes = await buildXlsx(headers, rows);
@@ -236,10 +246,6 @@ export default function InventoryPage() {
   }
 
   // ── Import / Unggah ───────────────────────────────────────────────────────────
-  // Uses item ID as the stable primary key:
-  //   - If ID exists in app → update (replace) the item with Excel data
-  //   - If ID is new → add as a new item
-  //   - Items not in the Excel file remain unchanged
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -252,8 +258,7 @@ export default function InventoryPage() {
         return;
       }
 
-      // Build a map of existing IDs for quick lookup
-      const existingIdSet = new Set(items.map((i) => Number(i.id)));
+      const existingIdSet = new Set(items.map((i) => String(i.id)));
 
       let addedCount = 0;
       let updatedCount = 0;
@@ -262,9 +267,10 @@ export default function InventoryPage() {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (!row || row.length < 6) continue;
-        const [idStr, name, typeStr, qtyStr, purchasePriceStr, sellingPriceStr] = row;
-        const id = Number(idStr);
-        if (isNaN(id) || id < 0) {
+        const [idRaw, name, typeStr, qtyStr, purchasePriceStr, sellingPriceStr] = row;
+
+        const id = toAlphanumericUpper(String(idRaw ?? '').trim());
+        if (!id) {
           errors.push(`Baris ${i + 1}: ID tidak valid`);
           continue;
         }
@@ -273,35 +279,33 @@ export default function InventoryPage() {
           continue;
         }
 
-        const productType =
+        const kind =
           typeStr?.toLowerCase() === 'jasa' || typeStr?.toLowerCase() === 'service'
-            ? ProductType.service
-            : ProductType.goods;
+            ? ItemKind.service
+            : ItemKind.goods;
         const sellingPrice = Number(sellingPriceStr) || 0;
         const purchasePrice = Number(purchasePriceStr) || 0;
-        const quantity = productType === ProductType.goods ? Number(qtyStr) || 0 : null;
+        const quantity = kind === ItemKind.goods ? Number(qtyStr) || 0 : null;
 
         try {
           if (existingIdSet.has(id)) {
-            // ID exists → update by replacing the item
             await replaceItem.mutateAsync({
-              id: BigInt(id),
+              id,
               name: String(name).trim(),
               sellingPrice: BigInt(sellingPrice),
               purchasePrice: BigInt(purchasePrice),
               quantity: quantity !== null ? BigInt(quantity) : null,
-              productType,
+              kind,
             });
             updatedCount++;
           } else {
-            // New ID → add as new item
             await addItem.mutateAsync({
-              id: BigInt(id),
+              id,
               name: String(name).trim(),
               sellingPrice: BigInt(sellingPrice),
               purchasePrice: BigInt(purchasePrice),
               quantity: quantity !== null ? BigInt(quantity) : null,
-              productType,
+              kind,
             });
             existingIdSet.add(id);
             addedCount++;
@@ -421,12 +425,12 @@ export default function InventoryPage() {
                   <TableCell className="font-mono text-sm">{String(item.id)}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>
-                    <Badge variant={item.productType === ProductType.goods ? 'default' : 'secondary'}>
-                      {item.productType === ProductType.goods ? 'Barang' : 'Jasa'}
+                    <Badge variant={item.kind === ItemKind.goods ? 'default' : 'secondary'}>
+                      {item.kind === ItemKind.goods ? 'Barang' : 'Jasa'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {item.productType === ProductType.goods ? (
+                    {item.kind === ItemKind.goods ? (
                       <span className={Number(item.quantity) <= 5 ? 'text-destructive font-semibold' : ''}>
                         {String(item.quantity ?? 0)}
                       </span>
@@ -458,7 +462,7 @@ export default function InventoryPage() {
         </Table>
       </div>
 
-      {/* Add Dialog */}
+      {/* ── Add Dialog ──────────────────────────────────────────────────────── */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
@@ -466,52 +470,56 @@ export default function InventoryPage() {
             <DialogDescription>Isi detail barang atau jasa yang ingin ditambahkan.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Tipe item */}
+            <div className="space-y-2">
+              <Label>Tipe Item</Label>
+              <RadioGroup
+                value={form.kind}
+                onValueChange={(val) =>
+                  setForm({ ...form, kind: val as ItemKind, quantity: '' })
+                }
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value={ItemKind.goods} id="add-goods" />
+                  <Label htmlFor="add-goods" className="cursor-pointer font-normal">
+                    📦 Barang
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value={ItemKind.service} id="add-service" />
+                  <Label htmlFor="add-service" className="cursor-pointer font-normal">
+                    🔧 Jasa
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="space-y-1.5">
               <Label>ID Barang</Label>
               <Input
-                type="number"
-                placeholder="Masukkan ID unik"
+                type="text"
+                placeholder="Contoh: BRG001, A01, SVC1"
                 value={form.id}
-                onChange={(e) => setForm({ ...form, id: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, id: toAlphanumericUpper(e.target.value) })
+                }
+                maxLength={20}
               />
+              <p className="text-xs text-muted-foreground">
+                Gunakan kombinasi huruf besar (A–Z) dan angka (0–9)
+              </p>
               {formErrors.id && <p className="text-xs text-destructive">{formErrors.id}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Nama</Label>
               <Input
-                placeholder="Nama barang atau jasa"
+                placeholder={form.kind === ItemKind.goods ? 'Nama barang' : 'Nama jasa'}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
               {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
             </div>
-            <div className="space-y-1.5">
-              <Label>Tipe</Label>
-              <Select
-                value={form.productType}
-                onValueChange={(v) => setForm({ ...form, productType: v as ProductType, quantity: '' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ProductType.goods}>Barang</SelectItem>
-                  <SelectItem value={ProductType.service}>Jasa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {form.productType === ProductType.goods && (
-              <div className="space-y-1.5">
-                <Label>Stok Awal</Label>
-                <Input
-                  type="number"
-                  placeholder="Jumlah stok"
-                  value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                />
-                {formErrors.quantity && <p className="text-xs text-destructive">{formErrors.quantity}</p>}
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Harga Beli (Rp)</Label>
@@ -538,35 +546,12 @@ export default function InventoryPage() {
                 )}
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleAdd} disabled={addItem.isPending}>
-              {addItem.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Stok Barang</DialogTitle>
-            <DialogDescription>
-              Perbarui jumlah stok untuk <strong>{selectedItem?.name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {selectedItem?.productType === ProductType.goods ? (
+            {form.kind === ItemKind.goods && (
               <div className="space-y-1.5">
-                <Label>Stok Saat Ini</Label>
+                <Label>Stok Awal</Label>
                 <Input
                   type="number"
-                  placeholder="Jumlah stok"
+                  placeholder="0"
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                 />
@@ -574,10 +559,71 @@ export default function InventoryPage() {
                   <p className="text-xs text-destructive">{formErrors.quantity}</p>
                 )}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Jasa tidak memiliki stok untuk diperbarui.
-              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddDialog(false);
+                setFormErrors({});
+              }}
+            >
+              Batal
+            </Button>
+            <Button onClick={handleAdd} disabled={addItem.isPending}>
+              {addItem.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Dialog ──────────────────────────────────────────────────────── */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Barang</DialogTitle>
+            <DialogDescription>
+              {selectedItem?.kind === ItemKind.goods
+                ? 'Perbarui stok barang.'
+                : 'Jasa tidak memiliki stok.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">ID</p>
+                <p className="font-mono font-medium">{form.id}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Tipe</p>
+                <Badge variant={form.kind === ItemKind.goods ? 'default' : 'secondary'}>
+                  {form.kind === ItemKind.goods ? 'Barang' : 'Jasa'}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Nama</p>
+                <p className="font-medium">{form.name}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Harga Jual</p>
+                <p className="font-medium">{formatRupiah(Number(form.sellingPrice))}</p>
+              </div>
+            </div>
+            {selectedItem?.kind === ItemKind.goods && (
+              <div className="space-y-1.5">
+                <Label>Stok Saat Ini</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                />
+                {formErrors.quantity && (
+                  <p className="text-xs text-destructive">{formErrors.quantity}</p>
+                )}
+              </div>
             )}
           </div>
           <DialogFooter>
@@ -585,67 +631,64 @@ export default function InventoryPage() {
               Batal
             </Button>
             <Button onClick={handleEdit} disabled={updateQty.isPending}>
-              {updateQty.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
+              {updateQty.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
               Simpan
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* ── Delete Dialog ─────────────────────────────────────────────────────── */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Hapus Barang</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus <strong>{selectedItem?.name}</strong>? Tindakan ini
-              tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus{' '}
+              <span className="font-semibold">{selectedItem?.name}</span>? Tindakan ini tidak
+              dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Batal
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteItem.isPending}>
-              {deleteItem.isPending && <Loader2 size={15} className="mr-1.5 animate-spin" />}
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteItem.isPending}
+            >
+              {deleteItem.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
               Hapus
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Import Result Dialog */}
+      {/* ── Import Result Dialog ──────────────────────────────────────────────── */}
       <Dialog open={showImportResult} onOpenChange={setShowImportResult}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hasil Unggah</DialogTitle>
-            <DialogDescription>Ringkasan proses unggah file Excel.</DialogDescription>
+            <DialogTitle>Hasil Import</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {importResult.success > 0 && (
-              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle2 size={16} />
-                <span>{importResult.success} barang baru berhasil ditambahkan</span>
-              </div>
-            )}
-            {importResult.updated > 0 && (
-              <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-                <CheckCircle2 size={16} />
-                <span>{importResult.updated} barang berhasil diperbarui</span>
-              </div>
-            )}
-            {importResult.success === 0 && importResult.updated === 0 && importResult.errors.length === 0 && (
-              <p className="text-sm text-muted-foreground">Tidak ada perubahan yang dilakukan.</p>
-            )}
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 size={16} className="text-green-500" />
+              <span>{importResult.success} barang baru ditambahkan</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 size={16} className="text-blue-500" />
+              <span>{importResult.updated} barang diperbarui</span>
+            </div>
             {importResult.errors.length > 0 && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle size={16} />
                   <span>{importResult.errors.length} baris gagal diproses:</span>
                 </div>
-                <ul className="text-xs text-muted-foreground space-y-0.5 pl-6 list-disc max-h-40 overflow-y-auto">
-                  {importResult.errors.map((err, idx) => (
-                    <li key={idx}>{err}</li>
+                <ul className="text-xs text-muted-foreground space-y-0.5 pl-6 list-disc">
+                  {importResult.errors.map((err, i) => (
+                    <li key={i}>{err}</li>
                   ))}
                 </ul>
               </div>

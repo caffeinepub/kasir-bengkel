@@ -95,11 +95,11 @@ export interface MonthlyReport {
     transactionCount: bigint;
 }
 export interface InventoryItem {
-    id: bigint;
+    id: string;
     purchasePrice: bigint;
+    kind: ItemKind;
     name: string;
     sellingPrice: bigint;
-    productType: ProductType;
     quantity?: bigint;
 }
 export type Time = bigint;
@@ -107,9 +107,9 @@ export interface _CaffeineStorageRefillInformation {
     proposed_top_up_amount?: bigint;
 }
 export interface TransactionItem {
-    id: bigint;
+    id: string;
     name: string;
-    itemType: ProductType;
+    itemType: ItemKind;
     quantity: bigint;
     price: bigint;
 }
@@ -141,7 +141,7 @@ export interface Transaction {
     timestamp: Time;
     items: Array<TransactionItem>;
 }
-export enum ProductType {
+export enum ItemKind {
     service = "service",
     goods = "goods"
 }
@@ -153,28 +153,28 @@ export interface backendInterface {
     _caffeineStorageRefillCashier(refillInformation: _CaffeineStorageRefillInformation | null): Promise<_CaffeineStorageRefillResult>;
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     addCustomer(customer: string): Promise<void>;
-    addInventoryItem(id: bigint, name: string, sellingPrice: bigint, purchasePrice: bigint, quantity: bigint | null, productType: ProductType): Promise<void>;
+    addInventoryItem(id: string, name: string, sellingPrice: bigint, purchasePrice: bigint, quantity: bigint | null, kind: ItemKind): Promise<void>;
     calculateProfitLoss(startTime: Time, endTime: Time): Promise<bigint>;
     createTransaction(items: Array<TransactionItem>, total: bigint, customerName: string, vehicleInfo: string): Promise<bigint>;
     deleteCustomer(customer: string): Promise<void>;
-    deleteInventoryItem(id: bigint): Promise<void>;
+    deleteInventoryItem(id: string): Promise<void>;
     deleteTransaction(id: bigint): Promise<void>;
     getAllCustomers(): Promise<Array<string>>;
     getAllInventoryItems(): Promise<Array<InventoryItem>>;
     getAllTransactions(): Promise<Array<Transaction>>;
     getDailyReport(day: Time): Promise<DailyReport>;
-    getInventoryItem(id: bigint): Promise<InventoryItem | null>;
+    getInventoryItem(id: string): Promise<InventoryItem | null>;
     getMonthlyReport(month: Time): Promise<MonthlyReport>;
-    getShopSettings(): Promise<ShopSettings>;
+    getPersistentSettings(): Promise<ShopSettings>;
     getTopSellingItems(count: bigint): Promise<Array<[string, bigint]>>;
     getTransaction(id: bigint): Promise<Transaction | null>;
     getTransactionsByCustomer(customer: string): Promise<Array<Transaction>>;
     getTransactionsByMonth(monthTimestamp: Time): Promise<Array<Transaction>>;
-    updateInventoryItemQuantity(itemId: bigint, newQuantity: bigint): Promise<void>;
-    updateShopSettings(shopName: string, address: string, phoneNumber: string, thankYouMessage: string): Promise<void>;
+    updateInventoryItemQuantity(itemId: string, newQuantity: bigint): Promise<void>;
+    updatePersistentSettings(shopName: string, address: string, phoneNumber: string, thankYouMessage: string): Promise<void>;
     uploadLogo(file: ExternalBlob): Promise<void>;
 }
-import type { ExternalBlob as _ExternalBlob, InventoryItem as _InventoryItem, ProductType as _ProductType, ShopSettings as _ShopSettings, Time as _Time, Transaction as _Transaction, TransactionItem as _TransactionItem, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { ExternalBlob as _ExternalBlob, InventoryItem as _InventoryItem, ItemKind as _ItemKind, ShopSettings as _ShopSettings, Time as _Time, Transaction as _Transaction, TransactionItem as _TransactionItem, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -275,17 +275,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addInventoryItem(arg0: bigint, arg1: string, arg2: bigint, arg3: bigint, arg4: bigint | null, arg5: ProductType): Promise<void> {
+    async addInventoryItem(arg0: string, arg1: string, arg2: bigint, arg3: bigint, arg4: bigint | null, arg5: ItemKind): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4), to_candid_ProductType_n9(this._uploadFile, this._downloadFile, arg5));
+                const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4), to_candid_ItemKind_n9(this._uploadFile, this._downloadFile, arg5));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4), to_candid_ProductType_n9(this._uploadFile, this._downloadFile, arg5));
+            const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4), to_candid_ItemKind_n9(this._uploadFile, this._downloadFile, arg5));
             return result;
         }
     }
@@ -331,7 +331,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async deleteInventoryItem(arg0: bigint): Promise<void> {
+    async deleteInventoryItem(arg0: string): Promise<void> {
         if (this.processError) {
             try {
                 const result = await this.actor.deleteInventoryItem(arg0);
@@ -415,7 +415,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getInventoryItem(arg0: bigint): Promise<InventoryItem | null> {
+    async getInventoryItem(arg0: string): Promise<InventoryItem | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getInventoryItem(arg0);
@@ -443,17 +443,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getShopSettings(): Promise<ShopSettings> {
+    async getPersistentSettings(): Promise<ShopSettings> {
         if (this.processError) {
             try {
-                const result = await this.actor.getShopSettings();
+                const result = await this.actor.getPersistentSettings();
                 return from_candid_ShopSettings_n26(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getShopSettings();
+            const result = await this.actor.getPersistentSettings();
             return from_candid_ShopSettings_n26(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -513,7 +513,7 @@ export class Backend implements backendInterface {
             return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
         }
     }
-    async updateInventoryItemQuantity(arg0: bigint, arg1: bigint): Promise<void> {
+    async updateInventoryItemQuantity(arg0: string, arg1: bigint): Promise<void> {
         if (this.processError) {
             try {
                 const result = await this.actor.updateInventoryItemQuantity(arg0, arg1);
@@ -527,17 +527,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateShopSettings(arg0: string, arg1: string, arg2: string, arg3: string): Promise<void> {
+    async updatePersistentSettings(arg0: string, arg1: string, arg2: string, arg3: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateShopSettings(arg0, arg1, arg2, arg3);
+                const result = await this.actor.updatePersistentSettings(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateShopSettings(arg0, arg1, arg2, arg3);
+            const result = await this.actor.updatePersistentSettings(arg0, arg1, arg2, arg3);
             return result;
         }
     }
@@ -562,7 +562,7 @@ async function from_candid_ExternalBlob_n29(_uploadFile: (file: ExternalBlob) =>
 function from_candid_InventoryItem_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _InventoryItem): InventoryItem {
     return from_candid_record_n16(_uploadFile, _downloadFile, value);
 }
-function from_candid_ProductType_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ProductType): ProductType {
+function from_candid_ItemKind_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ItemKind): ItemKind {
     return from_candid_variant_n18(_uploadFile, _downloadFile, value);
 }
 async function from_candid_ShopSettings_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ShopSettings): Promise<ShopSettings> {
@@ -593,26 +593,26 @@ function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
     return value.length === 0 ? null : value[0];
 }
 function from_candid_record_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
+    id: string;
     purchasePrice: bigint;
+    kind: _ItemKind;
     name: string;
     sellingPrice: bigint;
-    productType: _ProductType;
     quantity: [] | [bigint];
 }): {
-    id: bigint;
+    id: string;
     purchasePrice: bigint;
+    kind: ItemKind;
     name: string;
     sellingPrice: bigint;
-    productType: ProductType;
     quantity?: bigint;
 } {
     return {
         id: value.id,
         purchasePrice: value.purchasePrice,
+        kind: from_candid_ItemKind_n17(_uploadFile, _downloadFile, value.kind),
         name: value.name,
         sellingPrice: value.sellingPrice,
-        productType: from_candid_ProductType_n17(_uploadFile, _downloadFile, value.productType),
         quantity: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.quantity))
     };
 }
@@ -641,22 +641,22 @@ function from_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uin
     };
 }
 function from_candid_record_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
+    id: string;
     name: string;
-    itemType: _ProductType;
+    itemType: _ItemKind;
     quantity: bigint;
     price: bigint;
 }): {
-    id: bigint;
+    id: string;
     name: string;
-    itemType: ProductType;
+    itemType: ItemKind;
     quantity: bigint;
     price: bigint;
 } {
     return {
         id: value.id,
         name: value.name,
-        itemType: from_candid_ProductType_n17(_uploadFile, _downloadFile, value.itemType),
+        itemType: from_candid_ItemKind_n17(_uploadFile, _downloadFile, value.itemType),
         quantity: value.quantity,
         price: value.price
     };
@@ -698,8 +698,8 @@ function from_candid_variant_n18(_uploadFile: (file: ExternalBlob) => Promise<Ui
     service: null;
 } | {
     goods: null;
-}): ProductType {
-    return "service" in value ? ProductType.service : "goods" in value ? ProductType.goods : value;
+}): ItemKind {
+    return "service" in value ? ItemKind.service : "goods" in value ? ItemKind.goods : value;
 }
 function from_candid_vec_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_InventoryItem>): Array<InventoryItem> {
     return value.map((x)=>from_candid_InventoryItem_n15(_uploadFile, _downloadFile, x));
@@ -713,7 +713,7 @@ function from_candid_vec_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 async function to_candid_ExternalBlob_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
     return await _uploadFile(value);
 }
-function to_candid_ProductType_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ProductType): _ProductType {
+function to_candid_ItemKind_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ItemKind): _ItemKind {
     return to_candid_variant_n10(_uploadFile, _downloadFile, value);
 }
 function to_candid_TransactionItem_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TransactionItem): _TransactionItem {
@@ -729,22 +729,22 @@ function to_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Arra
     return value === null ? candid_none() : candid_some(value);
 }
 function to_candid_record_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
+    id: string;
     name: string;
-    itemType: ProductType;
+    itemType: ItemKind;
     quantity: bigint;
     price: bigint;
 }): {
-    id: bigint;
+    id: string;
     name: string;
-    itemType: _ProductType;
+    itemType: _ItemKind;
     quantity: bigint;
     price: bigint;
 } {
     return {
         id: value.id,
         name: value.name,
-        itemType: to_candid_ProductType_n9(_uploadFile, _downloadFile, value.itemType),
+        itemType: to_candid_ItemKind_n9(_uploadFile, _downloadFile, value.itemType),
         quantity: value.quantity,
         price: value.price
     };
@@ -758,14 +758,14 @@ function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         proposed_top_up_amount: value.proposed_top_up_amount ? candid_some(value.proposed_top_up_amount) : candid_none()
     };
 }
-function to_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ProductType): {
+function to_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ItemKind): {
     service: null;
 } | {
     goods: null;
 } {
-    return value == ProductType.service ? {
+    return value == ItemKind.service ? {
         service: null
-    } : value == ProductType.goods ? {
+    } : value == ItemKind.goods ? {
         goods: null
     } : value;
 }
