@@ -10,7 +10,6 @@ import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -28,7 +27,7 @@ actor {
     name : Text;
     sellingPrice : Nat;
     purchasePrice : Nat;
-    quantity : ?Nat; // null if not applicable (services)
+    quantity : ?Nat;
     productType : ProductType;
   };
 
@@ -87,7 +86,6 @@ actor {
 
   var nextTransactionId : Nat = 0;
   var persistentSettings : ?ShopSettings = null;
-
   let persistentTransactions = Map.empty<Nat, Transaction>();
   let persistentCustomers = Set.empty<Text>();
   let persistentInventory = Map.empty<Nat, InventoryItem>();
@@ -320,10 +318,8 @@ actor {
   };
 
   public query ({ caller }) func getTopSellingItems(count : Nat) : async [(Text, Nat)] {
-    // Create a map for item counts
     let itemCounts = Map.empty<Text, Nat>();
 
-    // Count item sales
     for ((_, transaction) in persistentTransactions.entries()) {
       for (item in transaction.items.values()) {
         switch (itemCounts.get(item.name)) {

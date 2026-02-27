@@ -1,86 +1,66 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Rename Catalog to Inventory, Add Buy/Sell Price Fields, and Goods/Service Type Selector",
+  "title": "Add Excel Import/Export to Inventory Page",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Rename all occurrences of 'Catalog' / 'Katalog' to 'Inventory' across the frontend — including the sidebar navigation label, page title, route path, and any internal references.",
+      "summary": "Add Excel export button to Inventory page that downloads all inventory items as a well-formatted .xlsx file with proper column headers and numeric formatting",
       "acceptanceCriteria": [
-        "Sidebar link reads 'Inventory' instead of 'Katalog' or 'Catalog'",
-        "The route path is updated to '/inventory'",
-        "Page heading on the page itself reads 'Inventory'",
-        "No remaining references to 'Katalog' or 'Catalog' appear in the UI"
+        "A clearly labeled 'Download Excel' button is visible on the Inventory page toolbar.",
+        "Clicking the button triggers a download of a .xlsx file (not .csv).",
+        "The downloaded file contains all current inventory items with columns: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
+        "The file opens correctly in Excel 2007 and newer versions.",
+        "Column headers are bold and clearly formatted.",
+        "Numeric price and stock values are stored as numbers (not strings) in the spreadsheet."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/Sidebar.tsx",
+          "path": "frontend/package.json",
           "operation": "modify",
-          "description": "Update the navigation link label from 'Katalog' to 'Inventory' and change the route path from '/catalog' to '/inventory'. Ensure the icon (Package) remains the same and the active state highlighting works correctly with the new path."
+          "description": "Add xlsx library (SheetJS) as a dependency to enable .xlsx file generation and parsing for Excel export and import functionality."
         },
         {
-          "path": "frontend/src/App.tsx",
+          "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Update the route path from '/catalog' to '/inventory' in the TanStack Router configuration. Change the import statement to reference the renamed page component (InventoryPage instead of CatalogPage)."
-        },
-        {
-          "path": "frontend/src/pages/CatalogPage.tsx",
-          "operation": "rename",
-          "description": "Rename the file from CatalogPage.tsx to InventoryPage.tsx. Update the component name from CatalogPage to InventoryPage. Change the page heading from 'Catalog' or 'Katalog' to 'Inventory'. Update all internal references, comments, and string literals that mention 'catalog' or 'katalog' to use 'inventory' instead."
+          "description": "Add a 'Download Excel' button to the inventory page toolbar above the table. Implement an onClick handler that fetches all inventory items via the existing useInventoryItems hook, transforms the data into a structured format with columns (Name, Type, Purchase Price, Selling Price, Stock, Unit), generates a .xlsx file using the xlsx library with bold headers and proper numeric cell types, and triggers a browser download with filename 'inventory-export.xlsx'. Ensure Type field maps 'goods'/'service' to 'Goods'/'Service', stock shows the quantity for goods or 'N/A' for services, and prices are formatted as numbers without currency symbols in the spreadsheet."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Add 'selling price' (harga jual) and 'purchase price' (harga beli) fields to the frontend UI — update all add/edit dialogs in the Inventory page to include these two fields and display both prices in the item list table.",
+      "summary": "Add Excel import button to Inventory page that parses uploaded .xlsx files with support for both semicolon and comma separators, validates rows, and bulk-imports items to the backend",
       "acceptanceCriteria": [
-        "Add and edit dialogs in Inventory page show labeled input fields for 'Selling Price' and 'Purchase Price'",
-        "Both prices are displayed in the inventory item list",
-        "Existing items without the new fields do not cause runtime errors (default to 0 or 0.0)"
+        "A clearly labeled 'Upload Excel' button is visible on the Inventory page toolbar.",
+        "Clicking the button opens a file picker that accepts .xlsx files.",
+        "The system correctly parses .xlsx files regardless of whether the regional Excel setting uses ; or , as separators.",
+        "Imported rows are validated: Name is required; Type must be 'goods' or 'service'; numeric fields (prices, stock) must be valid numbers.",
+        "Invalid rows are reported to the user with a clear error message indicating which rows failed and why.",
+        "Successfully imported items are added to the backend inventory and the inventory table refreshes automatically.",
+        "Duplicate items (by name) prompt the user to choose to skip or overwrite."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Add 'Selling Price' and 'Purchase Price' input fields (type number, required) to both the add and edit product/service dialogs. Update the form state to include sellingPrice and purchasePrice fields. Add two new columns to the inventory list table to display both prices formatted as Indonesian Rupiah using the formatRupiah utility. Update the mutation calls (addInventoryItem) to pass sellingPrice and purchasePrice from the form. Ensure default values of 0 are used when existing items lack these fields to prevent runtime errors."
+          "description": "Add an 'Upload Excel' button to the inventory page toolbar next to the Download Excel button. Implement an onClick handler that opens a file picker accepting .xlsx files. When a file is selected, read it using the xlsx library to parse the workbook. Extract the first sheet and convert rows to JSON, handling both semicolon and comma delimiters by detecting the cell content structure. Validate each row: ensure Name is non-empty, Type is 'Goods' or 'Service' (case-insensitive, map to 'goods'/'service'), Purchase Price and Selling Price are valid positive numbers, Stock is a valid non-negative number for goods (optional for services), and Unit is non-empty. Collect validation errors with row numbers. Check for duplicates by comparing lowercase names against existing inventory items fetched via useInventoryItems. If duplicates exist, show a confirmation dialog asking to skip or overwrite. Display validation errors in a dialog if any rows fail. For valid rows, call the addInventoryItem mutation from useQueries for each item with a generated ID (using Date.now() + index or similar), then invalidate and refetch the inventory query to refresh the table."
         }
       ]
     },
     {
       "id": "REQ-3",
-      "summary": "Add an item type selector ('Goods' / 'Service') to the frontend — update the Inventory add/edit dialogs to include a type selector that conditionally shows or hides the qty field based on the selected type.",
+      "summary": "Provide a downloadable Excel template file with pre-filled headers and an example row to guide users in preparing import data",
       "acceptanceCriteria": [
-        "Add/edit dialog contains a type selector (e.g., toggle or dropdown) labeled 'Goods' / 'Service'",
-        "When 'Service' is selected, the qty/stock input field is hidden in the dialog",
-        "Service items display 'Unlimited' or '∞' in the stock/qty column of the inventory list",
-        "Goods items continue to show and require a numeric qty/stock value"
+        "A 'Download Template' link or button is available near the Upload Excel button.",
+        "The template .xlsx file contains bold headers: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
+        "One example row is included demonstrating the expected format (e.g., 'Brake Pad, goods, 50000, 75000, 10, pcs').",
+        "The template file opens correctly in all Excel versions."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Add a type selector (RadioGroup or Select component from shadcn/ui) to the add and edit dialogs with options 'Goods' and 'Service', defaulting to 'Goods'. Add productType to the form state (using the ProductType enum from backend.d.ts with values 'goods' or 'service'). Conditionally render the quantity/stock input field only when productType is 'goods'; hide it when 'service' is selected. In the inventory list table, display 'Unlimited' or '∞' in the stock/qty column for service items, and show the numeric quantity for goods items. Update mutation calls to include the productType field. Ensure the backend ProductType enum values match the frontend selection."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Update the Profit/Loss section in the Reports page to calculate and display profit using the selling price minus purchase price per item sold, aggregated across transactions in the selected period.",
-      "acceptanceCriteria": [
-        "Reports page shows gross profit calculated as sum of (sellingPrice - purchasePrice) × quantity for all sold goods items",
-        "Profit/Loss figures are displayed in Indonesian Rupiah format consistent with the rest of the app",
-        "The calculation covers the same date filters used by existing daily/monthly report tabs"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add a new React Query hook (e.g., useProfitLoss) that calls the backend calculateProfitLoss method with startTime and endTime parameters (converted to nanosecond bigints using the dateToNanos utility). The hook should accept date range parameters and return the profit/loss value as a bigint. Follow the same pattern as existing query hooks in this file."
-        },
-        {
-          "path": "frontend/src/pages/ReportsPage.tsx",
-          "operation": "modify",
-          "description": "Add a new 'Profit/Loss' tab to the existing tabs (Daily, Monthly, Top Selling). In this tab, provide date range inputs (start date and end date) similar to the daily report tab. Call the useProfitLoss hook with the selected date range. Display the returned profit/loss value formatted as Indonesian Rupiah using the formatRupiah utility. Show appropriate loading and error states. Include a brief description that the profit is calculated as (selling price - purchase price) × quantity for all goods items sold in the period."
+          "description": "Add a 'Download Template' link or button to the inventory page toolbar near the Upload Excel button. Implement an onClick handler that programmatically creates a .xlsx file using the xlsx library containing bold column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) in the first row and one example data row (e.g., 'Brake Pad', 'Goods', 50000, 75000, 10, 'pcs') with proper cell types (text for Name/Type/Unit, number for prices and stock). Apply bold formatting to the header row using xlsx cell styling. Trigger a browser download with filename 'inventory-template.xlsx'."
         }
       ]
     }

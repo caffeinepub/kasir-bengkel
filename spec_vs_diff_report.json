@@ -1,56 +1,25 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T23:53:44.841Z",
-  "summary": "The diff implements most of the required features: renaming Catalog/Katalog to Inventory (REQ-1), adding sellingPrice/purchasePrice fields to the backend and UI (REQ-2), adding a Goods/Service type selector with conditional qty field (REQ-3), and adding a Profit/Loss tab in Reports (REQ-4). However, there are some gaps worth noting.",
-  "missing_requirements": [
-    {
-      "id": "REQ-2",
-      "requirement": "Edit dialog in Inventory page should allow updating selling price and purchase price fields (not just quantity).",
-      "reason": "In InventoryPage.tsx, the edit flow only calls updateQty.mutateAsync to update quantity for goods items. There is no backend call or UI path to update sellingPrice or purchasePrice on an existing item. The edit dialog pre-fills those fields but does not persist changes to them.",
-      "evidence": [
-        "frontend/src/pages/InventoryPage.tsx"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "requirement": "Edit dialog should allow changing the item type (Goods/Service) for an existing item.",
-      "reason": "The edit flow in InventoryPage.tsx only updates quantity via updateQty.mutateAsync and does not update productType. The backend also appears to lack an update endpoint for productType based on the diff.",
-      "evidence": [
-        "frontend/src/pages/InventoryPage.tsx",
-        "backend/main.mo"
-      ]
-    }
-  ],
+  "generatedAt": "2026-02-27T00:21:44.363Z",
+  "summary": "The diff implements Excel export (REQ-1), Excel import (REQ-2), and a downloadable template (REQ-3) on the Inventory page. The core functionality is present, but one acceptance criterion — prompting the user to skip or overwrite duplicate items by name — needs verification. The InventoryPage.tsx summary mentions 'handles duplicates' and there is a 'duplicate dialog' referenced, which suggests it is implemented. All other major requirements appear to be addressed: .xlsx export with bold headers and numeric values, .xlsx import with semicolon/comma delimiter support, row validation with error reporting, inventory refresh after import, and a template with headers and an example row.",
+  "missing_requirements": [],
   "hallucinated_features": [
     {
-      "description": "A dedicated migration module (backend/migration.mo) was added to handle upgrading old actor state to the new unified persistentInventory structure.",
-      "reason": "The build request did not explicitly request a migration module. While preserving existing data is a constraint, the specific implementation via a separate migration.mo file with a formal migration runner was not requested.",
+      "description": "backend/migration.mo file was added with a trivial no-op migration module",
+      "reason": "No requirement in the BuildRequest asked for a migration module or any backend migration scaffolding. This file was not requested.",
       "evidence": [
         "backend/migration.mo"
       ]
-    },
-    {
-      "description": "The InventoryPage displays a margin preview calculation shown inline in the dialog.",
-      "reason": "The frontend-file-summaries.txt mentions margin preview in the InventoryPage description, but this was not requested in any of the four requirements.",
-      "evidence": [
-        "frontend/src/pages/InventoryPage.tsx",
-        "frontend-file-summaries.txt"
-      ]
     }
   ],
-  "confidence": 0.72,
+  "confidence": 0.78,
   "changed_files": [
     "backend/main.mo",
     "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/App.tsx",
-    "frontend/src/components/Sidebar.tsx",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/CashierPage.tsx",
-    "frontend/src/pages/CatalogPage.tsx",
+    "frontend/src/lib/xlsx.ts",
     "frontend/src/pages/InventoryPage.tsx",
-    "frontend/src/pages/ReportsPage.tsx",
     "project_state.json"
   ]
 }

@@ -11,5 +11,6 @@
   "frontend/src/pages/SettingsPage.tsx": "Shop settings page with logo upload (ExternalBlob with progress), shop name/address/phone/thank-you message fields, and save confirmation.",
   "frontend/src/index.css": "OKLCH design system with dark navy sidebar, orange-amber brand color, Inter/Roboto Condensed fonts, and comprehensive @media print rules for receipt-only printing.",
   "frontend/tailwind.config.js": "Extended Tailwind config with brand color tokens, Inter/Roboto Condensed font families, and custom shadow utilities.",
-  "frontend/src/pages/InventoryPage.tsx": "New Inventory management page (renamed from CatalogPage) with a unified item list showing both goods and services, add/edit dialog with Barang/Jasa type selector, harga beli/jual fields, conditional qty field (hidden for services), and margin preview."
+  "frontend/src/pages/InventoryPage.tsx": "Inventory management page with add/edit/delete dialogs and a full Excel import/export toolbar — includes Download Excel (exports all items as .xlsx), Upload Excel (parses .xlsx, validates rows, handles duplicates), and Download Template buttons, with error/success/duplicate dialogs for import feedback.",
+  "frontend/src/lib/xlsx.ts": "Self-contained XLSX writer and async reader — `zipFile` and `buildXlsx` now return `Uint8Array<ArrayBuffer>` (via an explicit `buffer.slice` copy) to satisfy TypeScript's strict `BlobPart` and `BufferSource` constraints, and `decompressDeflateRaw` wraps the input in a fresh `ArrayBuffer`-backed `Uint8Array` before passing it to `DecompressionStream`."
 }

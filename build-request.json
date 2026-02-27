@@ -1,96 +1,83 @@
 {
   "kind": "build_request",
-  "title": "Rename Catalog to Inventory, Add Buy/Sell Price Fields, and Goods/Service Type Selector",
+  "title": "Add Excel Import/Export to Inventory Page",
   "projectName": "Kasir Bengkel",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Rename all occurrences of 'Catalog' / 'Katalog' to 'Inventory' across the entire application — including the sidebar navigation label, page title, route path, and any internal references.",
-      "target": "both",
+      "text": "Add an Excel export (download) button to the Inventory page that exports all inventory items to a well-formatted .xlsx file. The exported file must include columns: Name, Type (Goods/Service), Purchase Price, Selling Price, Stock, and Unit. The file must be compatible with all Excel versions and must NOT use CSV format.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "halaman Katalog sebaiknya diganti dengan Inventory saja"
+          "bisa ditambahkan menu unggah dan unduh exle dengan format axle (bukan csv) yang rapi bisa compatible dengan semua versi excel"
         ]
       },
       "acceptanceCriteria": [
-        "Sidebar link reads 'Inventory' instead of 'Katalog' or 'Catalog'",
-        "The route path is updated to '/inventory'",
-        "Page heading on the page itself reads 'Inventory'",
-        "No remaining references to 'Katalog' or 'Catalog' appear in the UI"
+        "A clearly labeled 'Download Excel' button is visible on the Inventory page toolbar.",
+        "Clicking the button triggers a download of a .xlsx file (not .csv).",
+        "The downloaded file contains all current inventory items with columns: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
+        "The file opens correctly in Excel 2007 and newer versions.",
+        "Column headers are bold and clearly formatted.",
+        "Numeric price and stock values are stored as numbers (not strings) in the spreadsheet."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Add a 'selling price' (harga jual) and 'purchase price' (harga beli) field to the product/item data model in the backend. Both fields are required numeric values (in Rupiah). Update all add/edit dialogs in the Inventory page to include these two fields. Display both prices in the item list table.",
+      "text": "Add an Excel import (upload) button to the Inventory page that allows users to upload a .xlsx file to bulk-import inventory items. The import logic must correctly parse both semicolon (;) and comma (,) column separators to ensure compatibility across all regional Excel versions. After a successful import, the inventory list must refresh to show the newly imported items.",
       "target": "both",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "di dalamnya diisi harga jual dan harga beli untuk keperluan laporan laba rugi"
+          "bisa ditambahkan menu unggah dan unduh exle dengan format axle (bukan csv) yang rapi bisa compatible dengan semua versi excel baik yang menggunakan tanda pemisah colom ; atau ,"
         ]
       },
       "acceptanceCriteria": [
-        "Backend product/item record includes 'sellingPrice' and 'purchasePrice' fields",
-        "Add and edit dialogs in Inventory page show labeled input fields for 'Selling Price' and 'Purchase Price'",
-        "Both prices are displayed in the inventory item list",
-        "Existing items without the new fields do not cause runtime errors (default to 0 or 0.0)"
+        "A clearly labeled 'Upload Excel' button is visible on the Inventory page toolbar.",
+        "Clicking the button opens a file picker that accepts .xlsx files.",
+        "The system correctly parses .xlsx files regardless of whether the regional Excel setting uses ; or , as separators.",
+        "Imported rows are validated: Name is required; Type must be 'goods' or 'service'; numeric fields (prices, stock) must be valid numbers.",
+        "Invalid rows are reported to the user with a clear error message indicating which rows failed and why.",
+        "Successfully imported items are added to the backend inventory and the inventory table refreshes automatically.",
+        "Duplicate items (by name) prompt the user to choose to skip or overwrite."
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Add an item type selector ('Goods' / 'Service') to the product/item data model and to the Inventory add/edit dialogs. When 'Service' is selected, the qty (stock) field is hidden and treated as unlimited (no stock tracking). When 'Goods' is selected, the qty field remains visible and required.",
-      "target": "both",
+      "text": "Create a downloadable Excel template file that users can download before importing, pre-filled with the correct column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) and one example row. This helps users prepare their data in the correct format.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "ada pilihan barang atau jasa, untuk jasa qty dikosongkan karena jumlah unlimited"
+          "menu unggah dan unduh exle dengan format axle (bukan csv) yang rapi"
         ]
       },
       "acceptanceCriteria": [
-        "Backend item record includes an item type field with values 'goods' or 'service'",
-        "Add/edit dialog contains a type selector (e.g., toggle or dropdown) labeled 'Goods' / 'Service'",
-        "When 'Service' is selected, the qty/stock input field is hidden in the dialog",
-        "Service items display 'Unlimited' or '∞' in the stock/qty column of the inventory list",
-        "Goods items continue to show and require a numeric qty/stock value"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Update the Profit/Loss (Laba Rugi) section in the Reports page to calculate profit using the selling price minus purchase price per item sold, aggregated across transactions in the selected period.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "harga jual dan harga beli untuk keperluan laporan laba rugi"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Reports page shows gross profit calculated as sum of (sellingPrice - purchasePrice) × quantity for all sold goods items",
-        "Profit/Loss figures are displayed in Indonesian Rupiah format consistent with the rest of the app",
-        "The calculation covers the same date filters used by existing daily/monthly report tabs"
+        "A 'Download Template' link or button is available near the Upload Excel button.",
+        "The template .xlsx file contains bold headers: Name, Type, Purchase Price, Selling Price, Stock, Unit.",
+        "One example row is included demonstrating the expected format (e.g., 'Brake Pad, goods, 50000, 75000, 10, pcs').",
+        "The template file opens correctly in all Excel versions."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files listed in frontend.immutablePaths",
-    "All Motoko logic must remain in backend/main.mo (single-actor architecture)",
-    "Preserve existing transaction history and cashier functionality"
+    "Export and import must use .xlsx format — CSV format is explicitly excluded.",
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
+    "Excel parsing must handle both semicolon (;) and comma (,) column delimiters for regional Excel compatibility.",
+    "All user-facing text must be in English."
   ],
   "nonGoals": [
-    "Redesigning the overall visual theme or layout",
-    "Adding new report types beyond profit/loss derived from buy/sell prices",
-    "Multi-currency support",
-    "External database integration"
+    "Exporting or importing transaction history or reports.",
+    "Support for .csv, .xls (legacy), or .ods file formats.",
+    "Cloud storage or server-side file storage of uploaded Excel files.",
+    "Real-time collaboration or multi-user import conflict resolution."
   ],
   "imageRequirements": {
     "required": [],

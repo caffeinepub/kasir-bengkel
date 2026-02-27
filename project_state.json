@@ -1,43 +1,34 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Aplikasi kasir bengkel (workshop POS app) with inventory management, profit/loss reporting, and service/goods distinction.",
+  "summary": "Inventory management app with upload/download Excel (.xlsx) support on the inventory page, compatible with all Excel versions regardless of column separator (; or ,).",
   "architectural_notes": [
-    "Inventory items have two types: 'Barang' (goods, with qty tracking) and 'Jasa' (service, no qty limit — qty field hidden)",
-    "Profit/loss report relies on harga jual and harga beli stored per inventory item"
+    "Excel import/export must use .xlsx format (not CSV), compatible with all Excel versions and both ; and , column separators"
   ],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-rename-all-occurrences-of-catalog-katalog-to-inventory-across-the-entire-application-including-the-sidebar-navigation-label-page-title-route-path-and-any-internal-references",
-      "title": "Rename all occurrences of 'Catalog' / 'Katalog' to 'Inventory' across the entire application — including the sidebar navigation label, page title, route path, and any internal references.",
+      "id": "feature-add-an-excel-export-download-button-to-the-inventory-page-that-exports-all-inventory-items-to-a-well-formatted-xlsx-file-the-exported-file-must-include-columns-name-type-goods-service-purchase-price-selling-price-stock-and-unit-the-file-must-be-compatible-with-all-excel-versions-and-must-not-use-csv-format",
+      "title": "Add an Excel export (download) button to the Inventory page that exports all inventory items to a well-formatted .xlsx file. The exported file must include columns: Name, Type (Goods/Service), Purchase Price, Selling Price, Stock, and Unit. The file must be compatible with all Excel versions and must NOT use CSV format.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-add-a-selling-price-harga-jual-and-purchase-price-harga-beli-field-to-the-product-item-data-model-in-the-backend-both-fields-are-required-numeric-values-in-rupiah-update-all-add-edit-dialogs-in-the-inventory-page-to-include-these-two-fields-display-both-prices-in-the-item-list-table",
-      "title": "Add a 'selling price' (harga jual) and 'purchase price' (harga beli) field to the product/item data model in the backend. Both fields are required numeric values (in Rupiah). Update all add/edit dialogs in the Inventory page to include these two fields. Display both prices in the item list table.",
+      "id": "feature-add-an-excel-import-upload-button-to-the-inventory-page-that-allows-users-to-upload-a-xlsx-file-to-bulk-import-inventory-items-the-import-logic-must-correctly-parse-both-semicolon-and-comma-column-separators-to-ensure-compatibility-across-all-regional-excel-versions-after-a-successful-import-the-inventory-list-must-refresh-to-show-the-newly-imported-items",
+      "title": "Add an Excel import (upload) button to the Inventory page that allows users to upload a .xlsx file to bulk-import inventory items. The import logic must correctly parse both semicolon (;) and comma (,) column separators to ensure compatibility across all regional Excel versions. After a successful import, the inventory list must refresh to show the newly imported items.",
       "reqIds": [
         "REQ-2"
       ],
       "version": 1
     },
     {
-      "id": "feature-add-an-item-type-selector-goods-service-to-the-product-item-data-model-and-to-the-inventory-add-edit-dialogs-when-service-is-selected-the-qty-stock-field-is-hidden-and-treated-as-unlimited-no-stock-tracking-when-goods-is-selected-the-qty-field-remains-visible-and-required",
-      "title": "Add an item type selector ('Goods' / 'Service') to the product/item data model and to the Inventory add/edit dialogs. When 'Service' is selected, the qty (stock) field is hidden and treated as unlimited (no stock tracking). When 'Goods' is selected, the qty field remains visible and required.",
+      "id": "feature-create-a-downloadable-excel-template-file-that-users-can-download-before-importing-pre-filled-with-the-correct-column-headers-name-type-purchase-price-selling-price-stock-unit-and-one-example-row-this-helps-users-prepare-their-data-in-the-correct-format",
+      "title": "Create a downloadable Excel template file that users can download before importing, pre-filled with the correct column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) and one example row. This helps users prepare their data in the correct format.",
       "reqIds": [
         "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-update-the-profit-loss-laba-rugi-section-in-the-reports-page-to-calculate-profit-using-the-selling-price-minus-purchase-price-per-item-sold-aggregated-across-transactions-in-the-selected-period",
-      "title": "Update the Profit/Loss (Laba Rugi) section in the Reports page to calculate profit using the selling price minus purchase price per item sold, aggregated across transactions in the selected period.",
-      "reqIds": [
-        "REQ-4"
       ],
       "version": 1
     }
@@ -45,25 +36,13 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Rename 'Katalog' page to 'Inventory'",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Add selling price (harga jual) and purchase price (harga beli) fields in Inventory for profit/loss reporting",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Add item type selector (Barang/Jasa) in Inventory; for Jasa (service), qty field is hidden/empty as quantity is unlimited",
+      "summary": "Tambahkan menu unggah (import) dan unduh (export) file Excel (.xlsx) di halaman Inventory, rapi dan kompatibel dengan semua versi Excel baik yang menggunakan pemisah kolom ; maupun ,",
       "reqIds": [],
       "status": "pending"
     }
   ],
   "gameProjectType": "none",
-  "projectName": "Aplikasi Kasir Bengkel",
+  "projectName": "Kasir Bengkel",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

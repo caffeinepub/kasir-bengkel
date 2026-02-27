@@ -1,33 +1,30 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T23:53:44.845Z",
+  "generatedAt": "2026-02-27T00:21:44.367Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 4,
+    "total": 3,
+    "implemented": 3,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Rename all occurrences of 'Catalog' / 'Katalog' to 'Inventory' across the entire application — including the sidebar navigation label, page title, route path, and any internal references.",
+        "summary": "Add an Excel export (download) button to the Inventory page that exports all inventory items to a well-formatted .xlsx file. The exported file must include columns: Name, Type (Goods/Service), Purchase Price, Selling Price, Stock, and Unit. The file must be compatible with all Excel versions and must NOT use CSV format.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/Sidebar.tsx",
-          "frontend/src/App.tsx",
-          "frontend/src/pages/CatalogPage.tsx"
+          "frontend/package.json",
+          "frontend/src/pages/InventoryPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/Sidebar.tsx",
-          "frontend/src/App.tsx",
-          "frontend/src/pages/CatalogPage.tsx"
+          "frontend/src/pages/InventoryPage.tsx"
         ]
       },
       {
         "id": "REQ-2",
-        "summary": "Add a 'selling price' (harga jual) and 'purchase price' (harga beli) field to the product/item data model in the backend. Both fields are required numeric values (in Rupiah). Update all add/edit dialogs in the Inventory page to include these two fields. Display both prices in the item list table.",
+        "summary": "Add an Excel import (upload) button to the Inventory page that allows users to upload a .xlsx file to bulk-import inventory items. The import logic must correctly parse both semicolon (;) and comma (,) column separators to ensure compatibility across all regional Excel versions. After a successful import, the inventory list must refresh to show the newly imported items.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/InventoryPage.tsx"
@@ -38,26 +35,13 @@
       },
       {
         "id": "REQ-3",
-        "summary": "Add an item type selector ('Goods' / 'Service') to the product/item data model and to the Inventory add/edit dialogs. When 'Service' is selected, the qty (stock) field is hidden and treated as unlimited (no stock tracking). When 'Goods' is selected, the qty field remains visible and required.",
+        "summary": "Create a downloadable Excel template file that users can download before importing, pre-filled with the correct column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) and one example row. This helps users prepare their data in the correct format.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/InventoryPage.tsx"
         ],
         "matchedFiles": [
           "frontend/src/pages/InventoryPage.tsx"
-        ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "Update the Profit/Loss (Laba Rugi) section in the Reports page to calculate profit using the selling price minus purchase price per item sold, aggregated across transactions in the selected period.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/ReportsPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/ReportsPage.tsx"
         ]
       }
     ]
@@ -66,21 +50,11 @@
     "backend/main.mo",
     "backend/migration.mo",
     "build-request.json",
-    "build-template/README.md",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/components/Sidebar.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/CashierPage.tsx",
-    "frontend/src/pages/CatalogPage.tsx",
+    "frontend/src/lib/xlsx.ts",
     "frontend/src/pages/InventoryPage.tsx",
-    "frontend/src/pages/ReportsPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

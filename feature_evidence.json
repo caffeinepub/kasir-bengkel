@@ -2,12 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-rename-all-occurrences-of-catalog-katalog-to-inventory-across-the-entire-application-including-the-sidebar-navigation-label-page-title-route-path-and-any-internal-references",
-      "featureTitle": "Rename all occurrences of 'Catalog' / 'Katalog' to 'Inventory' across the entire application — including the sidebar navigation label, page title, route path, and any internal references.",
+      "featureId": "feature-add-an-excel-export-download-button-to-the-inventory-page-that-exports-all-inventory-items-to-a-well-formatted-xlsx-file-the-exported-file-must-include-columns-name-type-goods-service-purchase-price-selling-price-stock-and-unit-the-file-must-be-compatible-with-all-excel-versions-and-must-not-use-csv-format",
+      "featureTitle": "Add an Excel export (download) button to the Inventory page that exports all inventory items to a well-formatted .xlsx file. The exported file must include columns: Name, Type (Goods/Service), Purchase Price, Selling Price, Stock, and Unit. The file must be compatible with all Excel versions and must NOT use CSV format.",
       "files": [
-        "frontend/src/App.tsx",
-        "frontend/src/components/Sidebar.tsx",
-        "frontend/src/pages/CatalogPage.tsx"
+        "frontend/src/pages/InventoryPage.tsx"
       ],
       "components": [
         "blob-storage@4.0.0",
@@ -23,8 +21,8 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-add-a-selling-price-harga-jual-and-purchase-price-harga-beli-field-to-the-product-item-data-model-in-the-backend-both-fields-are-required-numeric-values-in-rupiah-update-all-add-edit-dialogs-in-the-inventory-page-to-include-these-two-fields-display-both-prices-in-the-item-list-table",
-      "featureTitle": "Add a 'selling price' (harga jual) and 'purchase price' (harga beli) field to the product/item data model in the backend. Both fields are required numeric values (in Rupiah). Update all add/edit dialogs in the Inventory page to include these two fields. Display both prices in the item list table.",
+      "featureId": "feature-add-an-excel-import-upload-button-to-the-inventory-page-that-allows-users-to-upload-a-xlsx-file-to-bulk-import-inventory-items-the-import-logic-must-correctly-parse-both-semicolon-and-comma-column-separators-to-ensure-compatibility-across-all-regional-excel-versions-after-a-successful-import-the-inventory-list-must-refresh-to-show-the-newly-imported-items",
+      "featureTitle": "Add an Excel import (upload) button to the Inventory page that allows users to upload a .xlsx file to bulk-import inventory items. The import logic must correctly parse both semicolon (;) and comma (,) column separators to ensure compatibility across all regional Excel versions. After a successful import, the inventory list must refresh to show the newly imported items.",
       "files": [
         "frontend/src/pages/InventoryPage.tsx"
       ],
@@ -42,8 +40,8 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-add-an-item-type-selector-goods-service-to-the-product-item-data-model-and-to-the-inventory-add-edit-dialogs-when-service-is-selected-the-qty-stock-field-is-hidden-and-treated-as-unlimited-no-stock-tracking-when-goods-is-selected-the-qty-field-remains-visible-and-required",
-      "featureTitle": "Add an item type selector ('Goods' / 'Service') to the product/item data model and to the Inventory add/edit dialogs. When 'Service' is selected, the qty (stock) field is hidden and treated as unlimited (no stock tracking). When 'Goods' is selected, the qty field remains visible and required.",
+      "featureId": "feature-create-a-downloadable-excel-template-file-that-users-can-download-before-importing-pre-filled-with-the-correct-column-headers-name-type-purchase-price-selling-price-stock-unit-and-one-example-row-this-helps-users-prepare-their-data-in-the-correct-format",
+      "featureTitle": "Create a downloadable Excel template file that users can download before importing, pre-filled with the correct column headers (Name, Type, Purchase Price, Selling Price, Stock, Unit) and one example row. This helps users prepare their data in the correct format.",
       "files": [
         "frontend/src/pages/InventoryPage.tsx"
       ],
@@ -57,26 +55,6 @@
       ],
       "testIds": [
         "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-the-profit-loss-laba-rugi-section-in-the-reports-page-to-calculate-profit-using-the-selling-price-minus-purchase-price-per-item-sold-aggregated-across-transactions-in-the-selected-period",
-      "featureTitle": "Update the Profit/Loss (Laba Rugi) section in the Reports page to calculate profit using the selling price minus purchase price per item sold, aggregated across transactions in the selected period.",
-      "files": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/ReportsPage.tsx"
-      ],
-      "components": [
-        "blob-storage@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
       ],
       "confidence": "high"
     }

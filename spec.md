@@ -1,12 +1,15 @@
 # Specification
 
 ## Summary
-**Goal:** Rename "Catalog/Katalog" to "Inventory", add buy/sell price fields, add a Goods/Service type selector, and update the Profit/Loss report to use the new price fields.
+**Goal:** Add Excel (.xlsx) import and export functionality to the Inventory page, allowing users to bulk-download and bulk-upload inventory items.
 
 **Planned changes:**
-- Rename all UI references of "Katalog"/"Catalog" to "Inventory", including sidebar label, page title, and route path (`/inventory`)
-- Add `sellingPrice` (harga jual) and `purchasePrice` (harga beli) fields to the product/item data model; display both in the inventory list table and in add/edit dialogs
-- Add an item type field (`goods` or `service`) to the data model; show a type selector in add/edit dialogs; hide qty/stock input when "Service" is selected and display "∞" in the inventory list for service items
-- Update the Profit/Loss section in the Reports page to calculate gross profit as sum of `(sellingPrice - purchasePrice) × quantity` for sold goods items, respecting existing date filters
+- Add a "Download Excel" button to the Inventory page toolbar that exports all inventory items (Name, Type, Purchase Price, Selling Price, Stock, Unit) as a formatted .xlsx file with bold headers and numeric values stored as numbers.
+- Add a "Download Template" button near the upload area that generates a .xlsx template file with bold headers and one example row.
+- Add an "Upload Excel" button to the Inventory page toolbar that opens a file picker for .xlsx files, parses the uploaded file, validates rows (required name, valid type, valid numeric fields), and bulk-imports items into the inventory.
+- Handle both semicolon (;) and comma (,) column separators during import for regional Excel compatibility.
+- After a successful import, automatically refresh the inventory list.
+- Report invalid rows to the user with clear error messages indicating which rows failed and why.
+- Prompt the user to skip or overwrite duplicate items (matched by name) during import.
 
-**User-visible outcome:** Users see an "Inventory" page (renamed from Katalog) where each item has buy/sell prices and a Goods/Service type. Service items show unlimited stock. The Reports page now shows a profit/loss figure derived from the difference between selling and purchase prices.
+**User-visible outcome:** Users can export their full inventory to a formatted Excel file, download a pre-filled template to prepare import data, and bulk-import inventory items from a .xlsx file with validation feedback and duplicate handling.
