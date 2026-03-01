@@ -1,53 +1,54 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix Work Order Button & Revert Cashier/Inventory Pages to Version 15",
+  "title": "Revert frontend to Draft Version 15",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Fix the Work Order button on the Service page so that clicking it correctly opens the work order detail or completion dialog without errors",
-      "acceptanceCriteria": [
-        "Clicking the Work Order button on the Service page opens the expected dialog or navigates to the expected view without errors.",
-        "No console errors are thrown when clicking the Work Order button.",
-        "The Work Order button is visually enabled and responds to click events."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/ServicePage.tsx",
-          "operation": "modify",
-          "description": "Fix the Work Order button click handler to properly open the work order detail or completion dialog. Ensure the button's onClick event is correctly wired to the dialog state management (likely opening a completion dialog that navigates to the cashier page with pre-filled customer and vehicle information). Verify that the button is not disabled incorrectly and that all event handlers are properly bound."
-        }
-      ]
-    },
-    {
       "id": "REQ-2",
-      "summary": "Revert CashierPage.tsx to its Draft Version 15 implementation, removing all changes from Version 16-19",
+      "summary": "Revert CashierPage to Draft Version 15 state, restoring all component dependencies, UI layout, cart logic, and transaction completion flow",
       "acceptanceCriteria": [
-        "The Cashier page UI and behavior matches the Draft Version 15 state.",
-        "Cart, transaction completion, and receipt printing work as they did in Version 15.",
-        "No Version 16–19 regressions remain on the Cashier page."
+        "CashierPage matches the Draft Version 15 implementation",
+        "Cart functionality, customer/vehicle info fields, and receipt dialog work as in Draft Version 15",
+        "No Draft Version 21 changes remain in CashierPage"
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/CashierPage.tsx",
           "operation": "modify",
-          "description": "Revert the entire CashierPage.tsx file to its Draft Version 15 implementation. Remove any UI changes, state management modifications, or behavioral alterations introduced in versions 16 through 19. Restore the Version 15 cart logic, transaction completion flow, customer/vehicle info handling, receipt printing functionality, and any work order navigation data integration that existed in Version 15. Ensure the page uses the urlParams utility functions for reading work order navigation data if that was part of Version 15."
+          "description": "Revert CashierPage to its Draft Version 15 implementation. Restore all component imports, state management, cart operations (add/remove/update quantity), customer and vehicle input fields, transaction completion flow, and receipt dialog exactly as specified in Draft Version 15. Remove any Draft Version 21 additions or modifications. Ensure the page auto-fills customer data from work order navigation state using the urlParams utility."
         }
       ]
     },
     {
       "id": "REQ-3",
-      "summary": "Revert InventoryPage.tsx to its Draft Version 15 implementation, removing all changes from Version 16-19",
+      "summary": "Revert InventoryPage to Draft Version 15 state, restoring all component dependencies, search, stock management, low-stock indicators, and Excel import/export features",
       "acceptanceCriteria": [
-        "The Inventory page UI and behavior matches the Draft Version 15 state.",
-        "Adding, editing, deleting, and bulk importing/exporting inventory items work as they did in Version 15.",
-        "No Version 16–19 regressions remain on the Inventory page."
+        "InventoryPage matches the Draft Version 15 implementation",
+        "Add, edit, delete, search, and Excel import/export work as in Draft Version 15",
+        "No Draft Version 21 changes remain in InventoryPage"
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/InventoryPage.tsx",
           "operation": "modify",
-          "description": "Revert the entire InventoryPage.tsx file to its Draft Version 15 implementation. Remove any UI changes, table modifications, dialog alterations, or behavioral changes introduced in versions 16 through 19. Restore the Version 15 inventory management logic including: search functionality, add/edit/delete item dialogs, bulk import/export XLSX operations, and item type filtering (goods vs services). Ensure all Version 15 CRUD operations and validation logic are preserved."
+          "description": "Revert InventoryPage to its Draft Version 15 implementation. Restore all component imports, inventory table layout, add/edit/delete dialogs, search functionality, low-stock warning indicators, quantity adjustment controls, and Excel import/export features exactly as specified in Draft Version 15. Remove any Draft Version 21 additions or modifications. Ensure both goods and service item types are properly handled."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Revert ServicePage to Draft Version 15 state, restoring all component dependencies, work order creation/completion/deletion flow, search, and cashier navigation",
+      "acceptanceCriteria": [
+        "ServicePage matches the Draft Version 15 implementation",
+        "Create, complete, delete, and search work orders work as in Draft Version 15",
+        "Navigation to cashier page with pre-filled customer data works as in Draft Version 15",
+        "No Draft Version 21 changes remain in ServicePage"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/ServicePage.tsx",
+          "operation": "modify",
+          "description": "Revert ServicePage to its Draft Version 15 implementation. Restore all component imports, work order table with status indicators, create work order dialog (with customer name, phone, vehicles, problem description, repair action, technician fields), completion dialog, delete functionality, search/filter controls, and navigation to cashier page with pre-filled customer data using the urlParams utility exactly as specified in Draft Version 15. Remove any Draft Version 21 additions or modifications."
         }
       ]
     }

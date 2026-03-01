@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   useInventoryItems,
   useAddInventoryItem,
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -27,38 +29,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Pencil, Trash2, Upload, Download, Loader2, Package, Wrench } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Pencil, Trash2, Search, Upload, Download, Package, Wrench } from 'lucide-react';
 import { formatRupiah } from '../lib/utils';
-import { buildXlsx, readXlsx } from '../lib/xlsx';
 import { toast } from 'sonner';
+import { buildXlsx, readXlsx } from '../lib/xlsx';
 
-interface ItemFormData {
+type DialogMode = 'add-goods' | 'add-service' | 'edit-stock' | 'delete' | null;
+
+interface ItemFormState {
   name: string;
   sellingPrice: string;
   purchasePrice: string;
   quantity: string;
-  kind: ItemKind;
 }
 
-const emptyForm: ItemFormData = {
+const defaultForm: ItemFormState = {
   name: '',
   sellingPrice: '',
   purchasePrice: '',
   quantity: '',
-  kind: ItemKind.goods,
 };
-
-function generateId(): string {
-  return `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
 
 export default function InventoryPage() {
   const { data: items = [], isLoading } = useInventoryItems();
@@ -68,100 +59,102 @@ export default function InventoryPage() {
   const updateAllItems = useUpdateAllItems();
 
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'goods' | 'services'>('all');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [formData, setFormData] = useState<ItemFormData>(emptyForm);
-  const [editStockValue, setEditStockValue] = useState('');
+  const [form, setForm] = useState<ItemFormState>(defaultForm);
+  const [newStock, setNewStock] = useState('');
   const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = items.filter((item) => {
-    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
-    const matchTab =
-      activeTab === 'all' ||
-      (activeTab === 'goods' && item.kind === ItemKind.goods) ||
-      (activeTab === 'services' && item.kind === ItemKind.service);
-    return matchSearch && matchTab;
-  });
+  const goodsItems = items.filter(i => i.kind === ItemKind.goods);
+  const serviceItems = items.filter(i => i.kind === ItemKind.service);
 
-  const handleAdd = async () => {
-    if (!formData.name.trim()) {
+  const filteredGoods = goodsItems.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredServices = serviceItems.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const lowStockCount = goodsItems.filter(i => (i.quantity ?? 0n) <= 5n && (i.quantity ?? 0n) > 0n).length;
+  const outOfStockCount = goodsItems.filter(i => (i.quantity ?? 0n) === 0n).length;
+
+  const openAddGoods = () => {
+    setForm(defaultForm);
+    setDialogMode('add-goods');
+  };
+
+  const openAddService = () => {
+    setForm(defaultForm);
+    setDialogMode('add-service');
+  };
+
+  const openEditStock = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setNewStock(String(item.quantity ?? 0n));
+    setDialogMode('edit-stock');
+  };
+
+  const openDelete = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setDialogMode('delete');
+  };
+
+  const closeDialog = () => {
+    setDialogMode(null);
+    setSelectedItem(null);
+    setForm(defaultForm);
+    setNewStock('');
+  };
+
+  const handleAddItem = async (kind: ItemKind) => {
+    if (!form.name.trim()) {
       toast.error('Nama item wajib diisi');
       return;
     }
-    const sellingPrice = parseInt(formData.sellingPrice) || 0;
-    const purchasePrice = parseInt(formData.purchasePrice) || 0;
+    const sellingPrice = parseInt(form.sellingPrice) || 0;
+    const purchasePrice = parseInt(form.purchasePrice) || 0;
+    const quantity = kind === ItemKind.goods ? (parseInt(form.quantity) || 0) : null;
 
-    if (formData.kind === ItemKind.goods) {
-      const qty = parseInt(formData.quantity);
-      if (isNaN(qty) || qty <= 0) {
-        toast.error('Stok harus lebih dari 0 untuk barang');
-        return;
-      }
-      try {
-        await addItem.mutateAsync({
-          id: generateId(),
-          name: formData.name.trim(),
-          sellingPrice: BigInt(sellingPrice),
-          purchasePrice: BigInt(purchasePrice),
-          quantity: BigInt(qty),
-          kind: ItemKind.goods,
-        });
-        toast.success('Barang berhasil ditambahkan');
-        setShowAddDialog(false);
-        setFormData(emptyForm);
-      } catch {
-        toast.error('Gagal menambahkan barang');
-      }
-    } else {
-      try {
-        await addItem.mutateAsync({
-          id: generateId(),
-          name: formData.name.trim(),
-          sellingPrice: BigInt(sellingPrice),
-          purchasePrice: BigInt(purchasePrice),
-          quantity: null,
-          kind: ItemKind.service,
-        });
-        toast.success('Jasa berhasil ditambahkan');
-        setShowAddDialog(false);
-        setFormData(emptyForm);
-      } catch {
-        toast.error('Gagal menambahkan jasa');
-      }
+    if (kind === ItemKind.goods && (!form.quantity || parseInt(form.quantity) <= 0)) {
+      toast.error('Stok awal harus lebih dari 0');
+      return;
+    }
+
+    const id = `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    try {
+      await addItem.mutateAsync({
+        id,
+        name: form.name.trim(),
+        sellingPrice: BigInt(sellingPrice),
+        purchasePrice: BigInt(purchasePrice),
+        quantity: quantity !== null ? BigInt(quantity) : null,
+        kind,
+      });
+      toast.success('Item berhasil ditambahkan');
+      closeDialog();
+    } catch (e) {
+      toast.error('Gagal menambahkan item');
+      console.error(e);
     }
   };
 
-  const handleOpenEdit = (item: InventoryItem) => {
-    setSelectedItem(item);
-    if (item.kind === ItemKind.goods) {
-      setEditStockValue(item.quantity !== undefined && item.quantity !== null ? String(item.quantity) : '0');
-    }
-    setShowEditDialog(true);
-  };
-
-  const handleEditStock = async () => {
+  const handleUpdateStock = async () => {
     if (!selectedItem) return;
-    const newQty = parseInt(editStockValue);
-    if (isNaN(newQty) || newQty < 0) {
+    const qty = parseInt(newStock);
+    if (isNaN(qty) || qty < 0) {
       toast.error('Stok tidak valid');
       return;
     }
     try {
-      await updateQty.mutateAsync({ itemId: selectedItem.id, newQuantity: BigInt(newQty) });
+      await updateQty.mutateAsync({ itemId: selectedItem.id, newQuantity: BigInt(qty) });
       toast.success('Stok berhasil diperbarui');
-      setShowEditDialog(false);
-      setSelectedItem(null);
-    } catch {
+      closeDialog();
+    } catch (e) {
       toast.error('Gagal memperbarui stok');
+      console.error(e);
     }
-  };
-
-  const handleOpenDelete = (item: InventoryItem) => {
-    setSelectedItem(item);
-    setShowDeleteDialog(true);
   };
 
   const handleDelete = async () => {
@@ -169,25 +162,23 @@ export default function InventoryPage() {
     try {
       await deleteItem.mutateAsync(selectedItem.id);
       toast.success('Item berhasil dihapus');
-      setShowDeleteDialog(false);
-      setSelectedItem(null);
-    } catch {
+      closeDialog();
+    } catch (e) {
       toast.error('Gagal menghapus item');
+      console.error(e);
     }
   };
 
   const handleExport = async () => {
     try {
-      const headers = ['ID', 'Nama', 'Harga Jual', 'Harga Beli', 'Stok', 'Tipe'];
-      const rows = items.map((item) => [
-        item.id,
-        item.name,
-        Number(item.sellingPrice),
-        Number(item.purchasePrice),
-        item.kind === ItemKind.goods
-          ? (item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0)
-          : '',
-        item.kind === ItemKind.goods ? 'goods' : 'service',
+      const headers = ['ID', 'Nama', 'Harga Jual', 'Harga Beli', 'Stok', 'Jenis'];
+      const rows = items.map(i => [
+        i.id,
+        i.name,
+        String(i.sellingPrice),
+        String(i.purchasePrice),
+        i.kind === ItemKind.goods ? String(i.quantity ?? 0n) : '',
+        i.kind === ItemKind.goods ? 'barang' : 'jasa',
       ]);
       const buffer = await buildXlsx(headers, rows);
       const blob = new Blob([buffer], {
@@ -200,8 +191,9 @@ export default function InventoryPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Data berhasil diekspor');
-    } catch {
+    } catch (e) {
       toast.error('Gagal mengekspor data');
+      console.error(e);
     }
   };
 
@@ -210,357 +202,370 @@ export default function InventoryPage() {
     if (!file) return;
     setImportLoading(true);
     try {
-      // readXlsx expects ArrayBuffer
       const buffer = await file.arrayBuffer();
       const rows = await readXlsx(buffer);
+      // Skip header row
+      const dataRows = rows.slice(1);
+      const importedItems: InventoryItem[] = [];
 
-      if (rows.length < 2) {
-        toast.error('File kosong atau format tidak valid');
-        return;
-      }
-
-      // Build a map of existing items by ID for upsert logic
-      const existingMap = new Map<string, InventoryItem>();
-      for (const item of items) {
-        existingMap.set(item.id, item);
-      }
-
-      const toUpdate: InventoryItem[] = [];
-
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const id = String(row[0] ?? '').trim();
-        const name = String(row[1] ?? '').trim();
-        const sellingPrice = parseInt(String(row[2] ?? '0')) || 0;
-        const purchasePrice = parseInt(String(row[3] ?? '0')) || 0;
-        const quantityRaw = row[4];
-        const kindRaw = String(row[5] ?? '').trim().toLowerCase();
-
-        if (!name) continue;
-
-        const kind: ItemKind = kindRaw === 'service' ? ItemKind.service : ItemKind.goods;
-        const quantity: bigint | undefined =
-          kind === ItemKind.goods
-            ? BigInt(parseInt(String(quantityRaw ?? '0')) || 0)
-            : undefined;
-
-        const itemId = id || generateId();
-
-        const inventoryItem: InventoryItem = {
-          id: itemId,
-          name,
-          sellingPrice: BigInt(sellingPrice),
-          purchasePrice: BigInt(purchasePrice),
-          quantity,
+      for (const row of dataRows) {
+        const [id, name, sellingPriceStr, purchasePriceStr, quantityStr, kindStr] = row;
+        if (!id || !name) continue;
+        const kind = String(kindStr ?? '').toLowerCase() === 'jasa' ? ItemKind.service : ItemKind.goods;
+        const item: InventoryItem = {
+          id: String(id),
+          name: String(name),
+          sellingPrice: BigInt(parseInt(String(sellingPriceStr)) || 0),
+          purchasePrice: BigInt(parseInt(String(purchasePriceStr)) || 0),
+          quantity: kind === ItemKind.goods
+            ? BigInt(parseInt(String(quantityStr)) || 0)
+            : undefined,
           kind,
         };
-
-        toUpdate.push(inventoryItem);
+        importedItems.push(item);
       }
 
-      if (toUpdate.length === 0) {
+      if (importedItems.length === 0) {
         toast.error('Tidak ada data valid untuk diimpor');
         return;
       }
 
-      await updateAllItems.mutateAsync(toUpdate);
-      toast.success(`${toUpdate.length} item berhasil diimpor`);
-    } catch {
-      toast.error('Gagal mengimpor data');
+      await updateAllItems.mutateAsync(importedItems);
+      toast.success(`${importedItems.length} item berhasil diimpor`);
+    } catch (e) {
+      toast.error('Gagal mengimpor file');
+      console.error(e);
     } finally {
       setImportLoading(false);
-      e.target.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const goodsCount = items.filter((i) => i.kind === ItemKind.goods).length;
-  const servicesCount = items.filter((i) => i.kind === ItemKind.service).length;
+  const ItemTable = ({ data, kind }: { data: InventoryItem[]; kind: ItemKind }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nama</TableHead>
+          <TableHead className="text-right">Harga Jual</TableHead>
+          <TableHead className="text-right">Harga Beli</TableHead>
+          {kind === ItemKind.goods && <TableHead className="text-center">Stok</TableHead>}
+          <TableHead className="text-right">Aksi</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={kind === ItemKind.goods ? 5 : 4} className="text-center text-muted-foreground py-8">
+              Tidak ada item
+            </TableCell>
+          </TableRow>
+        ) : (
+          data.map(item => (
+            <TableRow key={item.id}>
+              <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell className="text-right">{formatRupiah(Number(item.sellingPrice))}</TableCell>
+              <TableCell className="text-right">{formatRupiah(Number(item.purchasePrice))}</TableCell>
+              {kind === ItemKind.goods && (
+                <TableCell className="text-center">
+                  <Badge
+                    variant={
+                      (item.quantity ?? 0n) === 0n
+                        ? 'destructive'
+                        : (item.quantity ?? 0n) <= 5n
+                        ? 'secondary'
+                        : 'outline'
+                    }
+                  >
+                    {String(item.quantity ?? 0n)}
+                  </Badge>
+                </TableCell>
+              )}
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {kind === ItemKind.goods && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditStock(item)}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Stok
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => openDelete(item)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Inventori</h1>
-          <p className="text-muted-foreground text-sm mt-1">Kelola produk dan layanan bengkel</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={items.length === 0}>
-            <Download className="w-4 h-4 mr-2" />
-            Ekspor
-          </Button>
-          <label className="cursor-pointer">
-            <Button variant="outline" size="sm" asChild disabled={importLoading}>
-              <span>
-                {importLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                Impor
-              </span>
-            </Button>
-            <input
-              type="file"
-              accept=".xlsx"
-              className="hidden"
-              onChange={handleImport}
-              disabled={importLoading}
-            />
-          </label>
-          <Button size="sm" onClick={() => { setFormData(emptyForm); setShowAddDialog(true); }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Tambah Item
-          </Button>
-        </div>
-      </div>
-
+    <div className="p-4 space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Package className="w-4 h-4" />
-            Total Item
-          </div>
-          <div className="text-2xl font-bold text-foreground">{items.length}</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Package className="w-4 h-4" />
-            Barang
-          </div>
-          <div className="text-2xl font-bold text-foreground">{goodsCount}</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Wrench className="w-4 h-4" />
-            Jasa
-          </div>
-          <div className="text-2xl font-bold text-foreground">{servicesCount}</div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Total Barang</p>
+            <p className="text-2xl font-bold">{goodsItems.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Total Layanan</p>
+            <p className="text-2xl font-bold">{serviceItems.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Stok Menipis</p>
+            <p className="text-2xl font-bold text-yellow-600">{lowStockCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Habis</p>
+            <p className="text-2xl font-bold text-destructive">{outOfStockCount}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Search & Tabs */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Cari item..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-          <TabsList>
-            <TabsTrigger value="all">Semua</TabsTrigger>
-            <TabsTrigger value="goods">Barang</TabsTrigger>
-            <TabsTrigger value="services">Jasa</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importLoading}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          {importLoading ? 'Mengimpor...' : 'Import'}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx"
+          className="hidden"
+          onChange={handleImport}
+        />
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Item</TableHead>
-              <TableHead>Tipe</TableHead>
-              <TableHead className="text-right">Harga Jual</TableHead>
-              <TableHead className="text-right">Harga Beli</TableHead>
-              <TableHead className="text-right">Stok</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-                  Memuat data...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  Tidak ada item ditemukan
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>
-                    {item.kind === ItemKind.goods ? (
-                      <Badge variant="outline" className="text-xs">
-                        <Package className="w-3 h-3 mr-1" />
-                        Barang
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">
-                        <Wrench className="w-3 h-3 mr-1" />
-                        Jasa
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">{formatRupiah(Number(item.sellingPrice))}</TableCell>
-                  <TableCell className="text-right">{formatRupiah(Number(item.purchasePrice))}</TableCell>
-                  <TableCell className="text-right">
-                    {item.kind === ItemKind.goods ? (
-                      <span
-                        className={
-                          item.quantity !== undefined && item.quantity !== null && Number(item.quantity) > 0
-                            ? 'text-foreground'
-                            : 'text-destructive font-medium'
-                        }
-                      >
-                        {item.quantity !== undefined && item.quantity !== null ? Number(item.quantity) : 0}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {item.kind === ItemKind.goods && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(item)}
-                          title="Edit Stok"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenDelete(item)}
-                        title="Hapus"
-                        className="text-destructive hover:text-destructive/80"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {/* Tabs */}
+      <Tabs defaultValue="goods">
+        <TabsList>
+          <TabsTrigger value="goods" className="flex items-center gap-1">
+            <Package className="h-4 w-4" />
+            Barang ({goodsItems.length})
+          </TabsTrigger>
+          <TabsTrigger value="services" className="flex items-center gap-1">
+            <Wrench className="h-4 w-4" />
+            Layanan ({serviceItems.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Add Item Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md">
+        <TabsContent value="goods">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Daftar Barang</CardTitle>
+              <Button size="sm" onClick={openAddGoods}>
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah Barang
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="max-h-[500px]">
+                {isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Memuat...</div>
+                ) : (
+                  <ItemTable data={filteredGoods} kind={ItemKind.goods} />
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="services">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Daftar Layanan</CardTitle>
+              <Button size="sm" onClick={openAddService}>
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah Layanan
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="max-h-[500px]">
+                {isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Memuat...</div>
+                ) : (
+                  <ItemTable data={filteredServices} kind={ItemKind.service} />
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Goods Dialog */}
+      <Dialog open={dialogMode === 'add-goods'} onOpenChange={open => !open && closeDialog()}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Item Baru</DialogTitle>
-            <DialogDescription>Tambahkan produk atau layanan ke inventori</DialogDescription>
+            <DialogTitle>Tambah Barang</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label>Tipe Item</Label>
-              <Select
-                value={formData.kind}
-                onValueChange={(v) => setFormData({ ...formData, kind: v as ItemKind, quantity: '' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ItemKind.goods}>Barang</SelectItem>
-                  <SelectItem value={ItemKind.service}>Jasa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Nama Item *</Label>
+          <div className="space-y-3">
+            <div>
+              <Label>Nama Barang</Label>
               <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Nama produk atau layanan"
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Nama barang"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+              <div>
                 <Label>Harga Jual (Rp)</Label>
                 <Input
                   type="number"
-                  value={formData.sellingPrice}
-                  onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                  value={form.sellingPrice}
+                  onChange={e => setForm(f => ({ ...f, sellingPrice: e.target.value }))}
                   placeholder="0"
-                  min="0"
                 />
               </div>
-              <div className="space-y-1">
+              <div>
                 <Label>Harga Beli (Rp)</Label>
                 <Input
                   type="number"
-                  value={formData.purchasePrice}
-                  onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
+                  value={form.purchasePrice}
+                  onChange={e => setForm(f => ({ ...f, purchasePrice: e.target.value }))}
                   placeholder="0"
-                  min="0"
                 />
               </div>
             </div>
-            {formData.kind === ItemKind.goods && (
-              <div className="space-y-1">
-                <Label>Stok Awal *</Label>
-                <Input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  placeholder="0"
-                  min="1"
-                />
-              </div>
-            )}
+            <div>
+              <Label>Stok Awal</Label>
+              <Input
+                type="number"
+                value={form.quantity}
+                onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
+                placeholder="0"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Batal</Button>
-            <Button onClick={handleAdd} disabled={addItem.isPending}>
-              {addItem.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Tambah
+            <Button variant="outline" onClick={closeDialog}>Batal</Button>
+            <Button
+              onClick={() => handleAddItem(ItemKind.goods)}
+              disabled={addItem.isPending}
+            >
+              {addItem.isPending ? 'Menyimpan...' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Service Dialog */}
+      <Dialog open={dialogMode === 'add-service'} onOpenChange={open => !open && closeDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Layanan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nama Layanan</Label>
+              <Input
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Nama layanan"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Harga Jual (Rp)</Label>
+                <Input
+                  type="number"
+                  value={form.sellingPrice}
+                  onChange={e => setForm(f => ({ ...f, sellingPrice: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label>Harga Beli (Rp)</Label>
+                <Input
+                  type="number"
+                  value={form.purchasePrice}
+                  onChange={e => setForm(f => ({ ...f, purchasePrice: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>Batal</Button>
+            <Button
+              onClick={() => handleAddItem(ItemKind.service)}
+              disabled={addItem.isPending}
+            >
+              {addItem.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Stock Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-sm">
+      <Dialog open={dialogMode === 'edit-stock'} onOpenChange={open => !open && closeDialog()}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Stok</DialogTitle>
+            <DialogTitle>Update Stok</DialogTitle>
             <DialogDescription>
-              Perbarui jumlah stok untuk <strong>{selectedItem?.name}</strong>
+              {selectedItem?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label>Jumlah Stok</Label>
-              <Input
-                type="number"
-                value={editStockValue}
-                onChange={(e) => setEditStockValue(e.target.value)}
-                min="0"
-                placeholder="0"
-              />
-            </div>
+          <div>
+            <Label>Stok Baru</Label>
+            <Input
+              type="number"
+              value={newStock}
+              onChange={e => setNewStock(e.target.value)}
+              placeholder="0"
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Batal</Button>
-            <Button onClick={handleEditStock} disabled={updateQty.isPending}>
-              {updateQty.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Simpan
+            <Button variant="outline" onClick={closeDialog}>Batal</Button>
+            <Button
+              onClick={handleUpdateStock}
+              disabled={updateQty.isPending}
+            >
+              {updateQty.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="max-w-sm">
+      {/* Delete Dialog */}
+      <Dialog open={dialogMode === 'delete'} onOpenChange={open => !open && closeDialog()}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Hapus Item</DialogTitle>
             <DialogDescription>
@@ -568,10 +573,13 @@ export default function InventoryPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Batal</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteItem.isPending}>
-              {deleteItem.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Hapus
+            <Button variant="outline" onClick={closeDialog}>Batal</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteItem.isPending}
+            >
+              {deleteItem.isPending ? 'Menghapus...' : 'Hapus'}
             </Button>
           </DialogFooter>
         </DialogContent>

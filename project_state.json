@@ -1,44 +1,47 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Project involves a service/repair management system with work order functionality, cashier page, and inventory page. User reported that the work order button is broken after Version 19 deployment and wants the cashier and inventory pages reverted to Draft Version 15.",
-  "architectural_notes": [
-    "Work order button must function correctly when clicked (broken in Version 19)",
-    "Cashier and inventory pages should match Draft Version 15 as baseline"
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
   "known_issues": [
-    "Work order button not functioning when clicked (regression in Version 19)",
-    "Cashier page and inventory page need to be reverted to Draft Version 15 state"
+    "Production go-live failed on Version 21; user requested rollback to Draft Version 15"
   ],
   "isFixRequest": true,
-  "existing_features": [
+  "existing_features": [],
+  "new_feature_requests": [
     {
-      "id": "feature-fix-the-work-order-button-on-the-service-page-servicepage-tsx-so-that-clicking-it-correctly-opens-the-work-order-detail-or-completion-dialog-the-button-must-be-fully-functional-and-respond-to-click-events-without-errors",
-      "title": "Fix the Work Order button on the Service page (ServicePage.tsx) so that clicking it correctly opens the work order detail or completion dialog. The button must be fully functional and respond to click events without errors.",
+      "id": "AR-1",
+      "summary": "Revert the backend (backend/main.mo) to its Draft Version 15 state, restoring all types, persistent state definitions, and query/update methods (inventory, transactions, work orders, shop settings, user profiles, reports, and access control) exactly as they were in that version.",
       "reqIds": [
         "REQ-1"
       ],
-      "version": 1
+      "status": "pending"
     },
     {
-      "id": "feature-revert-cashierpage-tsx-to-its-draft-version-15-implementation-remove-any-changes-introduced-in-version-16-through-version-19-that-altered-the-cashier-page-s-ui-logic-or-behavior-restoring-it-to-the-stable-version-15-state",
-      "title": "Revert CashierPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the cashier page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "id": "AR-2",
+      "summary": "Revert CashierPage (frontend/src/pages/CashierPage.tsx) to its Draft Version 15 state, restoring all component dependencies, UI layout, cart logic, and transaction completion flow as specified in the feature evidence report.",
       "reqIds": [
         "REQ-2"
       ],
-      "version": 1
+      "status": "pending"
     },
     {
-      "id": "feature-revert-inventorypage-tsx-to-its-draft-version-15-implementation-remove-any-changes-introduced-in-version-16-through-version-19-that-altered-the-inventory-page-s-ui-logic-or-behavior-restoring-it-to-the-stable-version-15-state",
-      "title": "Revert InventoryPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the inventory page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "id": "AR-3",
+      "summary": "Revert InventoryPage (frontend/src/pages/InventoryPage.tsx) to its Draft Version 15 state, restoring all component dependencies, search, stock management, low-stock indicators, and Excel import/export features as specified in the feature evidence report.",
       "reqIds": [
         "REQ-3"
       ],
-      "version": 1
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Revert ServicePage (frontend/src/pages/ServicePage.tsx) to its Draft Version 15 state, restoring all component dependencies, work order creation/completion/deletion flow, search, and cashier navigation as specified in the feature evidence report.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "status": "pending"
     }
   ],
-  "new_feature_requests": [],
-  "gameProjectType": "none",
   "projectName": "Kasir Bengkel",
   "clarification_mode": "instant",
   "clarification_rounds": 0

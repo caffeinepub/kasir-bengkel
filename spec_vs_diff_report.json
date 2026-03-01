@@ -1,16 +1,40 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T07:55:38.217Z",
-  "summary": "The diff modifies CashierPage.tsx, InventoryPage.tsx, and ServicePage.tsx, addressing all three requirements. REQ-1 (fix Work Order button on ServicePage) is addressed with fixes to storeWorkOrderNavData calls and button wiring. REQ-2 (revert CashierPage to V15) and REQ-3 (revert InventoryPage to V15) both have modified files. However, since all files are truncated, it is impossible to fully verify that CashierPage and InventoryPage are truly reverted to Version 15 state versus partially updated. The evidence available is consistent with the requirements being addressed.",
-  "missing_requirements": [],
+  "generatedAt": "2026-02-27T08:27:55.591Z",
+  "summary": "The diff shows only two files modified: backend/main.mo (truncated) and project_state.json. The backend/main.mo appears to be partially reverted toward Draft Version 15 state, but the content is truncated so full verification is impossible. The three frontend files required by REQ-2, REQ-3, and REQ-4 (CashierPage.tsx, InventoryPage.tsx, ServicePage.tsx) show no changes at all in the diff.",
+  "missing_requirements": [
+    {
+      "id": "REQ-2",
+      "requirement": "Revert CashierPage (frontend/src/pages/CashierPage.tsx) to its Draft Version 15 state",
+      "reason": "No changes to frontend/src/pages/CashierPage.tsx appear in the diff. The file is neither added nor modified.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Revert InventoryPage (frontend/src/pages/InventoryPage.tsx) to its Draft Version 15 state",
+      "reason": "No changes to frontend/src/pages/InventoryPage.tsx appear in the diff. The file is neither added nor modified.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "Revert ServicePage (frontend/src/pages/ServicePage.tsx) to its Draft Version 15 state",
+      "reason": "No changes to frontend/src/pages/ServicePage.tsx appear in the diff. The file is neither added nor modified.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-1",
+      "requirement": "Revert backend/main.mo fully to Draft Version 15 state with all query/update methods restored",
+      "reason": "The diff for backend/main.mo is truncated at 4000 characters, making it impossible to verify that all query and update methods are fully restored. Only type definitions and partial state declarations are visible.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    }
+  ],
   "hallucinated_features": [],
-  "confidence": 0.7,
+  "confidence": 0.72,
   "changed_files": [
-    "frontend-file-summaries.txt",
-    "frontend/src/pages/CashierPage.tsx",
-    "frontend/src/pages/InventoryPage.tsx",
-    "frontend/src/pages/ServicePage.tsx",
+    "backend/main.mo",
     "project_state.json"
   ]
 }

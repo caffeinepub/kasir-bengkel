@@ -1,74 +1,91 @@
 {
   "kind": "build_request",
-  "title": "Fix Work Order Button & Revert Cashier/Inventory Pages to Version 15",
+  "title": "Revert backend to Draft Version 15",
   "projectName": "Kasir Bengkel",
   "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Fix the Work Order button on the Service page (ServicePage.tsx) so that clicking it correctly opens the work order detail or completion dialog. The button must be fully functional and respond to click events without errors.",
-      "target": "frontend",
+      "text": "Revert the backend (backend/main.mo) to its Draft Version 15 state, restoring all types, persistent state definitions, and query/update methods (inventory, transactions, work orders, shop settings, user profiles, reports, and access control) exactly as they were in that version.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "msg-5"
         ],
         "quotes": [
-          "mala jadi tidak berfungsi tombol work order nya saat di klik"
+          "draft version 15 adalah yang terbaik, bisakah dikembalikan ke versi tersebut."
         ]
       },
       "acceptanceCriteria": [
-        "Clicking the Work Order button on the Service page opens the expected dialog or navigates to the expected view without errors.",
-        "No console errors are thrown when clicking the Work Order button.",
-        "The Work Order button is visually enabled and responds to click events."
+        "backend/main.mo matches the Draft Version 15 implementation in structure and logic",
+        "All query and update methods present in Draft Version 15 are restored and functional",
+        "No Draft Version 21 changes remain in the backend"
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Revert CashierPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the cashier page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "text": "Revert CashierPage (frontend/src/pages/CashierPage.tsx) to its Draft Version 15 state, restoring all component dependencies, UI layout, cart logic, and transaction completion flow as specified in the feature evidence report.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "msg-5"
         ],
         "quotes": [
-          "halaman kasir dan halaman inventory minta dikembalikan seperti draft version 15"
+          "draft version 15 adalah yang terbaik, bisakah dikembalikan ke versi tersebut."
         ]
       },
       "acceptanceCriteria": [
-        "The Cashier page UI and behavior matches the Draft Version 15 state.",
-        "Cart, transaction completion, and receipt printing work as they did in Version 15.",
-        "No Version 16–19 regressions remain on the Cashier page."
+        "CashierPage matches the Draft Version 15 implementation",
+        "Cart functionality, customer/vehicle info fields, and receipt dialog work as in Draft Version 15",
+        "No Draft Version 21 changes remain in CashierPage"
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Revert InventoryPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the inventory page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
+      "text": "Revert InventoryPage (frontend/src/pages/InventoryPage.tsx) to its Draft Version 15 state, restoring all component dependencies, search, stock management, low-stock indicators, and Excel import/export features as specified in the feature evidence report.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "msg-5"
         ],
         "quotes": [
-          "halaman kasir dan halaman inventory minta dikembalikan seperti draft version 15"
+          "draft version 15 adalah yang terbaik, bisakah dikembalikan ke versi tersebut."
         ]
       },
       "acceptanceCriteria": [
-        "The Inventory page UI and behavior matches the Draft Version 15 state.",
-        "Adding, editing, deleting, and bulk importing/exporting inventory items work as they did in Version 15.",
-        "No Version 16–19 regressions remain on the Inventory page."
+        "InventoryPage matches the Draft Version 15 implementation",
+        "Add, edit, delete, search, and Excel import/export work as in Draft Version 15",
+        "No Draft Version 21 changes remain in InventoryPage"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Revert ServicePage (frontend/src/pages/ServicePage.tsx) to its Draft Version 15 state, restoring all component dependencies, work order creation/completion/deletion flow, search, and cashier navigation as specified in the feature evidence report.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-5"
+        ],
+        "quotes": [
+          "draft version 15 adalah yang terbaik, bisakah dikembalikan ke versi tersebut."
+        ]
+      },
+      "acceptanceCriteria": [
+        "ServicePage matches the Draft Version 15 implementation",
+        "Create, complete, delete, and search work orders work as in Draft Version 15",
+        "Navigation to cashier page with pre-filled customer data works as in Draft Version 15",
+        "No Draft Version 21 changes remain in ServicePage"
       ]
     }
   ],
   "constraints": [
-    "Do not modify backend/main.mo unless strictly necessary to support the Version 15 frontend revert.",
-    "Do not alter immutable frontend paths (useInternetIdentity, useActor, main.tsx, components/ui).",
-    "Preserve all Version 19 features on pages other than Cashier and Inventory (e.g., Service page work order completion dialog, technician field, save-and-transaction navigation)."
+    "Do not introduce any changes beyond restoring Draft Version 15 state",
+    "Do not modify immutable frontend paths: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui"
   ],
   "nonGoals": [
-    "Reverting the Service page (ServicePage.tsx) — only fix the broken Work Order button.",
-    "Reverting TransactionHistoryPage, ReportsPage, SettingsPage, or any other pages.",
-    "Changing the backend data model or stored state.",
-    "Introducing new features beyond the revert and button fix."
+    "Introducing new features or UI improvements beyond Draft Version 15",
+    "Applying any Draft Version 21 logic or UI changes",
+    "Modifying pages or backend logic not listed in the revert scope"
   ],
   "imageRequirements": {
     "required": [],

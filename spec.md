@@ -1,11 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the broken Work Order button on the Service page and revert the Cashier and Inventory pages to their stable Draft Version 15 state.
+**Goal:** Revert the backend and key frontend pages of Kasir Bengkel to their Draft Version 15 state.
 
 **Planned changes:**
-- Fix the Work Order button in `ServicePage.tsx` so clicking it correctly opens the work order detail or completion dialog without errors.
-- Revert `CashierPage.tsx` to its Draft Version 15 implementation, removing all changes from Versions 16–19.
-- Revert `InventoryPage.tsx` to its Draft Version 15 implementation, removing all changes from Versions 16–19.
+- Revert `backend/main.mo` to Draft Version 15, restoring all types, persistent state, and query/update methods (inventory, transactions, work orders, shop settings, user profiles, reports, access control)
+- Revert `frontend/src/pages/CashierPage.tsx` to Draft Version 15, restoring cart logic, customer/vehicle info fields, and receipt dialog
+- Revert `frontend/src/pages/InventoryPage.tsx` to Draft Version 15, restoring search, stock management, low-stock indicators, and Excel import/export
+- Revert `frontend/src/pages/ServicePage.tsx` to Draft Version 15, restoring work order creation/completion/deletion, search, and cashier navigation with pre-filled customer data
 
-**User-visible outcome:** The Work Order button on the Service page is fully functional, and the Cashier and Inventory pages behave exactly as they did in Version 15, with no regressions from later versions.
+**User-visible outcome:** The application behaves exactly as it did in Draft Version 15, with all previously working features in the cashier, inventory, and service pages restored.

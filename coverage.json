@@ -1,58 +1,56 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-27T07:55:38.221Z",
+  "generatedAt": "2026-02-27T08:27:55.593Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 3,
+    "total": 4,
+    "implemented": 0,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Fix the Work Order button on the Service page (ServicePage.tsx) so that clicking it correctly opens the work order detail or completion dialog. The button must be fully functional and respond to click events without errors.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/ServicePage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/ServicePage.tsx"
-        ]
+        "summary": "Revert the backend (backend/main.mo) to its Draft Version 15 state, restoring all types, persistent state definitions, and query/update methods (inventory, transactions, work orders, shop settings, user profiles, reports, and access control) exactly as they were in that version.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "Revert CashierPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the cashier page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
-        "status": "implemented",
+        "summary": "Revert CashierPage (frontend/src/pages/CashierPage.tsx) to its Draft Version 15 state, restoring all component dependencies, UI layout, cart logic, and transaction completion flow as specified in the feature evidence report.",
+        "status": "missing",
         "plannedFiles": [
           "frontend/src/pages/CashierPage.tsx"
         ],
-        "matchedFiles": [
-          "frontend/src/pages/CashierPage.tsx"
-        ]
+        "matchedFiles": []
       },
       {
         "id": "REQ-3",
-        "summary": "Revert InventoryPage.tsx to its Draft Version 15 implementation. Remove any changes introduced in Version 16 through Version 19 that altered the inventory page's UI, logic, or behavior, restoring it to the stable Version 15 state.",
-        "status": "implemented",
+        "summary": "Revert InventoryPage (frontend/src/pages/InventoryPage.tsx) to its Draft Version 15 state, restoring all component dependencies, search, stock management, low-stock indicators, and Excel import/export features as specified in the feature evidence report.",
+        "status": "missing",
         "plannedFiles": [
           "frontend/src/pages/InventoryPage.tsx"
         ],
-        "matchedFiles": [
-          "frontend/src/pages/InventoryPage.tsx"
-        ]
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Revert ServicePage (frontend/src/pages/ServicePage.tsx) to its Draft Version 15 state, restoring all component dependencies, work order creation/completion/deletion flow, search, and cashier navigation as specified in the feature evidence report.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/ServicePage.tsx"
+        ],
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
-    "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/pages/CashierPage.tsx",
-    "frontend/src/pages/InventoryPage.tsx",
-    "frontend/src/pages/ServicePage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",
